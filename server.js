@@ -52,6 +52,11 @@ function sendGamesList(targetSocket = null) {
     }
 }
 
+// Neue Funktion: Sende spezielle Ereignisse an alle Spieler
+function broadcastSpecialEvent(gameId, eventType, data) {
+    io.to(gameId).emit(eventType, data);
+}
+
 io.on('connection', (socket) => {
     console.log('✅ Spieler verbunden:', socket.id);
     
@@ -176,6 +181,13 @@ io.on('connection', (socket) => {
                 game.startGame();
                 gamePlayers.forEach(p => p.ready = false);
                 
+                // WICHTIG: Prüfe auf spezielle Ereignisse nach dem Start
+                if (game.lastAction.type === 'quadsRemoved') {
+                    broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
+                } else if (game.lastAction.type === 'playerLostAces') {
+                    broadcastSpecialEvent(player.gameId, 'playerLostAces', game.lastAction);
+                }
+                
                 io.to(player.gameId).emit('gameStarted', game.getPublicGameState());
                 
                 game.players.forEach(p => {
@@ -214,6 +226,13 @@ io.on('connection', (socket) => {
             
             console.log('✅ Karten erfolgreich gespielt!');
             
+            // WICHTIG: Prüfe auf spezielle Ereignisse
+            if (game.lastAction.type === 'quadsRemoved') {
+                broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
+            } else if (game.lastAction.type === 'playerLostAces') {
+                broadcastSpecialEvent(player.gameId, 'playerLostAces', game.lastAction);
+            }
+            
             // Alle über die neue Situation informieren
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
             
@@ -245,6 +264,13 @@ io.on('connection', (socket) => {
             
             // Bluff-Ergebnis an alle senden
             io.to(player.gameId).emit('bluffResult', bluffResult);
+            
+            // WICHTIG: Prüfe auf spezielle Ereignisse nach Bluff
+            if (game.lastAction.type === 'quadsRemoved') {
+                broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
+            } else if (game.lastAction.type === 'playerLostAces') {
+                broadcastSpecialEvent(player.gameId, 'playerLostAces', game.lastAction);
+            }
             
             // Game State Update
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
@@ -317,5 +343,9 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('=====================================');
     console.log(`Lokal: http://localhost:${PORT}`);
     console.log(`LAN: http://${LOCAL_IP}:${PORT}`);
+    console.log('📋 Neue Regeln:');
+    console.log('- 4 gleiche Karten werden automatisch entfernt');
+    console.log('- 4 Asse = Spieler verliert sofort');
+    console.log('- Asse können nicht behauptet werden');
     console.log('=====================================');
 });

@@ -64,7 +64,6 @@
             50% { transform: scale(1.1); }
         }
 
-        /* TISCH LAYOUT */
         .game-table {
             position: relative;
             width: 800px;
@@ -109,7 +108,6 @@
             to { box-shadow: 0 0 20px #f39c12; }
         }
 
-        /* Spieler-Positionen um den Tisch */
         .seat-bottom { bottom: -60px; left: 50%; transform: translateX(-50%); }
         .seat-top { top: -60px; left: 50%; transform: translateX(-50%); }
         .seat-left { left: -80px; top: 50%; transform: translateY(-50%); }
@@ -117,7 +115,6 @@
         .seat-bottom-left { bottom: -40px; left: 100px; }
         .seat-bottom-right { bottom: -40px; right: 100px; }
 
-        /* Eigene Hand */
         .my-hand {
             margin: 30px auto;
             max-width: 800px;
@@ -159,7 +156,6 @@
             color: white;
         }
 
-        /* Game Controls */
         .game-controls {
             position: fixed;
             top: 20px;
@@ -246,7 +242,6 @@
             margin: 2px;
         }
 
-        /* Responsive */
         @media (max-width: 900px) {
             .game-table {
                 width: 600px;
@@ -265,20 +260,17 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div style="text-align: center; margin-bottom: 30px;">
             <h1>Bluff Kartenspiel</h1>
             <div id="status" class="status disconnected">Verbinde...</div>
             <div id="playerInfo"></div>
         </div>
 
-        <!-- Debug Panel -->
         <div class="debug-panel">
             <button onclick="debugGameState()" class="btn debug-btn">Debug</button>
             <button onclick="console.log('Hand:', playerHand)" class="btn debug-btn">Hand</button>
         </div>
 
-        <!-- Hauptmenu -->
         <div id="menuScreen" class="screen active">
             <div style="text-align: center;">
                 <h2>Willkommen beim Bluff-Spiel!</h2>
@@ -297,7 +289,6 @@
             </div>
         </div>
 
-        <!-- Lobby -->
         <div id="lobbyScreen" class="screen">
             <div style="text-align: center;">
                 <h2 id="gameTitle">Lobby</h2>
@@ -309,13 +300,10 @@
             </div>
         </div>
 
-        <!-- Spiel -->
         <div id="gameScreen" class="screen">
             <div id="gameMessages"></div>
             
-            <!-- Spieltisch -->
             <div class="game-table">
-                <!-- Tisch-Mitte -->
                 <div class="table-center">
                     <div id="lastClaim" style="display: none;">
                         <h4>Letzte Behauptung:</h4>
@@ -325,20 +313,15 @@
                         <p>Karten in der Mitte: <span id="centerPileCount">0</span></p>
                     </div>
                 </div>
-                
-                <!-- Andere Spieler um den Tisch -->
                 <div id="tableSeats"></div>
             </div>
 
-            <!-- Game Controls (rechts oben) -->
             <div class="game-controls">
-                <!-- Bluff Button -->
                 <div id="bluffControls" class="bluff-controls" style="display: none;">
                     <button class="btn btn-bluff" onclick="callBluff()">BLUFF!</button>
                     <p>Zweifel die Behauptung an!</p>
                 </div>
                 
-                <!-- Spielsteuerung -->
                 <div id="playControls" style="display: none;">
                     <h3>Du bist am Zug!</h3>
                     
@@ -373,7 +356,6 @@
                 <button class="btn btn-danger" onclick="leaveGame()">Spiel verlassen</button>
             </div>
 
-            <!-- Eigene Hand -->
             <div class="my-hand">
                 <div style="margin-bottom: 15px;">
                     <h3>Deine Karten (<span id="handCount">0</span>)</h3>
@@ -385,7 +367,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Globale Variablen
         var socket = io();
         var currentGameId = null;
         var playerData = null;
@@ -395,14 +376,12 @@
 
         console.log('JavaScript wird geladen...');
 
-        // Status aktualisieren
         function updateStatus(type, text) {
             var status = document.getElementById('status');
             status.className = 'status ' + type;
             status.textContent = text;
         }
 
-        // Screen wechseln
         function showScreen(screenId) {
             var screens = document.querySelectorAll('.screen');
             for (var i = 0; i < screens.length; i++) {
@@ -411,7 +390,6 @@
             document.getElementById(screenId).classList.add('active');
         }
 
-        // Nachricht anzeigen
         function showMessage(type, text, containerId) {
             containerId = containerId || 'gameMessages';
             var container = document.getElementById(containerId);
@@ -429,7 +407,6 @@
             }, type === 'bluff-result' ? 10000 : 5000);
         }
 
-        // Debug-Funktion
         function debugGameState() {
             console.log('=== GAME STATE DEBUG ===');
             console.log('playerData:', playerData);
@@ -439,47 +416,52 @@
             console.log('========================');
         }
 
-        // Spiele-Liste aktualisieren
         function updateGamesList(games) {
             var container = document.getElementById('gamesList');
+            if (!container) return;
+            
             container.innerHTML = '';
 
-            if (games.length === 0) {
+            if (!games || games.length === 0) {
                 container.innerHTML = '<div class="message info">Keine Spiele verfügbar</div>';
                 return;
             }
 
             for (var i = 0; i < games.length; i++) {
                 var game = games[i];
+                if (!game) continue;
+                
                 var gameElement = document.createElement('div');
                 gameElement.className = 'game-card';
                 gameElement.onclick = (function(gameId) {
                     return function() { joinGame(gameId); };
                 })(game.id);
                 
+                var host = game.host || 'Unbekannt';
+                var playerCount = game.playerCount || 0;
+                var gameState = game.gameState || 'waiting';
+                var gameStateText = getGameStateText(gameState);
+                
                 gameElement.innerHTML = 
-                    '<h3>Spiel von ' + game.host + '</h3>' +
-                    '<p>Spieler: ' + game.playerCount + '/6</p>' +
-                    '<p>Status: ' + getGameStateText(game.gameState) + '</p>';
+                    '<h3>Spiel von ' + host + '</h3>' +
+                    '<p>Spieler: ' + playerCount + '/6</p>' +
+                    '<p>Status: ' + gameStateText + '</p>';
                 
                 container.appendChild(gameElement);
             }
         }
 
-        // Spiel erstellen
         function createGame() {
             console.log('createGame aufgerufen');
             socket.emit('createGame', {});
         }
 
-        // Spiel beitreten
         function joinGame(gameId) {
             console.log('joinGame aufgerufen:', gameId);
             socket.emit('joinGame', { gameId: gameId });
             showScreen('lobbyScreen');
         }
 
-        // Spiel verlassen
         function leaveGame() {
             console.log('leaveGame aufgerufen');
             socket.emit('leaveGame', {});
@@ -495,7 +477,6 @@
             refreshGames();
         }
 
-        // Ready toggle
         function toggleReady() {
             var readyBtn = document.getElementById('readyBtn');
             var isReady = readyBtn.dataset.ready === 'true';
@@ -513,12 +494,10 @@
             socket.emit('playerReady');
         }
 
-        // Spiele aktualisieren
         function refreshGames() {
             socket.emit('refreshGames');
         }
 
-        // Name ändern
         function changeName() {
             var nameInput = document.getElementById('playerName');
             var newName = nameInput.value.trim();
@@ -530,7 +509,6 @@
             }
         }
 
-        // Karte auswählen/abwählen
         function toggleCardSelection(cardId) {
             console.log('Karte auswählen:', cardId);
             var index = selectedCards.indexOf(cardId);
@@ -547,7 +525,6 @@
             updatePlayButton();
         }
 
-        // Kartenauswahl visuell aktualisieren
         function updateCardSelection() {
             var cards = document.querySelectorAll('.card');
             console.log('Alle Karten:', cards.length);
@@ -562,45 +539,95 @@
                 }
             }
 
-            var selectionInfo = document.getElementById('selectionInfo');
-            var selectedCount = document.getElementById('selectedCount');
-            
-            if (selectedCards.length > 0) {
-                selectedCount.textContent = selectedCards.length;
-                selectionInfo.style.display = 'block';
+            if (gameData && gameData.lastClaim) {
+                updateCardValueSelection(); // Zeigt die neuen Regeln
             } else {
-                selectionInfo.style.display = 'none';
+                // Normale Auswahl für ersten Spieler
+                var selectionInfo = document.getElementById('selectionInfo');
+                
+                if (selectedCards.length > 0) {
+                    selectionInfo.innerHTML = selectedCards.length + ' Karte(n) ausgewählt';
+                    selectionInfo.style.display = 'block';
+                } else {
+                    selectionInfo.style.display = 'none';
+                }
             }
         }
 
-        // Spielen-Button aktualisieren
+        function updateCardValueSelection() {
+            var claimValueSelect = document.getElementById('claimValue');
+            if (!claimValueSelect) return;
+            
+            if (gameData.lastClaim) {
+                var valueMap = {
+                    '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9', '10': '10',
+                    'J': '11', 'Q': '12', 'K': '13'
+                };
+                
+                var requiredValue = valueMap[gameData.lastClaim.value] || gameData.lastClaim.value;
+                claimValueSelect.value = requiredValue;
+                claimValueSelect.disabled = true;
+                
+                var selectionInfo = document.getElementById('selectionInfo');
+                var newTotal = gameData.lastClaim.count + selectedCards.length;
+                
+                var infoText = '<strong>Du musst ' + gameData.lastClaim.value + ' behaupten!</strong><br>' +
+                              'Aktuelle Behauptung: ' + gameData.lastClaim.count + 'x ' + gameData.lastClaim.value + '<br>' +
+                              'Deine Karten: ' + selectedCards.length + ' → Neue Gesamtanzahl: ' + newTotal + 'x ' + gameData.lastClaim.value + '<br>' +
+                              '(Mindestens 1 Karte erforderlich)';
+                              
+                selectionInfo.innerHTML = infoText;
+                selectionInfo.style.display = 'block';
+            } else {
+                claimValueSelect.disabled = false;
+            }
+        }
+
         function updatePlayButton() {
             var playBtn = document.getElementById('playCardsBtn');
             if (!playBtn) return;
             
-            // Button aktivieren wenn Karten ausgewählt sind und Spieler am Zug ist
-            var canPlay = selectedCards.length > 0 && gameData && gameData.isCurrentPlayer === true;
+            var canPlay = false;
+            var buttonText = 'Karten wählen';
+            
+            if (selectedCards.length > 0 && gameData && gameData.isCurrentPlayer === true) {
+                if (gameData.lastClaim) {
+                    canPlay = selectedCards.length >= 1;
+                    if (canPlay) {
+                        var newTotal = gameData.lastClaim.count + selectedCards.length;
+                        buttonText = selectedCards.length + ' hinzufügen → ' + newTotal + 'x ' + gameData.lastClaim.value;
+                    } else {
+                        buttonText = 'Mindestens 1 Karte erforderlich';
+                    }
+                } else {
+                    canPlay = true;
+                    buttonText = selectedCards.length + ' Karte(n) spielen';
+                }
+            }
             
             playBtn.disabled = !canPlay;
+            playBtn.textContent = buttonText;
             
             if (canPlay) {
-                playBtn.textContent = selectedCards.length + ' Karte(n) spielen';
                 playBtn.style.background = 'linear-gradient(135deg, #2ecc71, #27ae60)';
             } else {
-                playBtn.textContent = 'Karten wählen (' + selectedCards.length + ')';
                 playBtn.style.background = 'linear-gradient(135deg, #95a5a6, #7f8c8d)';
             }
         }
 
-        // Karten spielen
         function playSelectedCards() {
             if (selectedCards.length === 0) {
                 showMessage('error', 'Bitte wähle zuerst Karten aus');
                 return;
             }
             
+            if (gameData.lastClaim && selectedCards.length < 1) {
+                showMessage('error', 'Du musst mindestens 1 Karte spielen');
+                return;
+            }
+            
             var claimValueNum = parseInt(document.getElementById('claimValue').value);
-            var claimCount = selectedCards.length; // Anzahl automatisch ermitteln
+            var claimCount = selectedCards.length;
 
             var valueMap = {
                 2: { name: '2', value: 2 },
@@ -614,8 +641,7 @@
                 10: { name: '10', value: 10 },
                 11: { name: 'J', value: 11 },
                 12: { name: 'Q', value: 12 },
-                13: { name: 'K', value: 13 },
-                14: { name: 'A', value: 14 }
+                13: { name: 'K', value: 13 }
             };
 
             var claimedValue = valueMap[claimValueNum];
@@ -637,13 +663,11 @@
             updatePlayButton();
         }
 
-        // Bluff rufen
         function callBluff() {
             console.log('Rufe Bluff!');
             socket.emit('callBluff');
         }
 
-        // Lobby aktualisieren
         function updateLobby() {
             if (!gameData) return;
 
@@ -666,7 +690,6 @@
             }
         }
 
-        // Spieler um den Tisch anordnen
         function updateTableSeats() {
             if (!gameData || !playerData) return;
 
@@ -693,16 +716,13 @@
             }
         }
 
-        // Spiel aktualisieren
         function updateGame() {
             if (!gameData) return;
 
             console.log('Update Game called:', gameData);
 
-            // Tisch-Mitte aktualisieren
             document.getElementById('centerPileCount').textContent = gameData.centerPileCount;
 
-            // Letzte Behauptung
             var lastClaimEl = document.getElementById('lastClaim');
             var lastClaimText = document.getElementById('lastClaimText');
             
@@ -714,33 +734,32 @@
                 lastClaimEl.style.display = 'none';
             }
 
-            // Spieler um den Tisch anordnen
             updateTableSeats();
 
-            // Steuerung
             var playControls = document.getElementById('playControls');
             var bluffControls = document.getElementById('bluffControls');
             
             if (gameData.isCurrentPlayer) {
                 console.log('Spieler ist am Zug');
                 playControls.style.display = 'block';
-                bluffControls.style.display = 'none';
+                
+                if (gameData.canCallBluff && gameData.lastClaim) {
+                    bluffControls.style.display = 'block';
+                } else {
+                    bluffControls.style.display = 'none';
+                }
+                
+                updateCardValueSelection();
                 updatePlayButton();
             } else {
                 playControls.style.display = 'none';
-                bluffControls.style.display = gameData.canCallBluff ? 'block' : 'none';
+                bluffControls.style.display = 'none';
             }
         }
 
-        // Spielerhand aktualisieren
         function updatePlayerHand() {
             console.log('=== UPDATE PLAYER HAND ===');
             console.log('playerHand:', playerHand);
-            
-            if (!playerHand || playerHand.length === 0) {
-                console.log('Keine Karten in der Hand');
-                return;
-            }
             
             var handContainer = document.getElementById('playerHand');
             var handCount = document.getElementById('handCount');
@@ -751,7 +770,14 @@
             }
             
             handContainer.innerHTML = '';
-            handCount.textContent = playerHand.length;
+            
+            handCount.textContent = playerHand ? playerHand.length : 0;
+            
+            if (!playerHand || playerHand.length === 0) {
+                console.log('Keine Karten in der Hand');
+                handContainer.innerHTML = '<p style="color: #888;">Keine Karten vorhanden</p>';
+                return;
+            }
             
             console.log('Erstelle', playerHand.length, 'Karten');
 
@@ -780,34 +806,34 @@
             console.log('=== UPDATE PLAYER HAND ENDE ===');
         }
 
-        // Kartenfarben-Symbole
         function getSuitSymbol(suit) {
             var symbols = {
                 hearts: '♥',
-              diamonds: '♦',
+                diamonds: '♦',
                 clubs: '♣',
                 spades: '♠'
             };
             return symbols[suit] || suit;
         }
 
-        // Spielstatus-Text
-        function getGameStateText(state) {
-            var states = {
-                waiting: 'Wartet auf Spieler',
-                playing: 'Spiel läuft',
-                finished: 'Beendet'
-            };
-            return states[state] || state;
+        function getGameState() {
+            if (state === 'waiting') {
+                return 'Wartet auf Spieler';
+            } else if (state === 'playing') {
+                return 'Spiel läuft';
+            } else if (state === 'finished') {
+                return 'Beendet';
+            } else {
+                return state;
+            }
         }
 
-        // Socket Events
         socket.on('connect', function() {
-      pdateStatus('connected', 'Verbunden');
+            updateStatus('connected', 'Verbunden');
         });
 
         socket.on('disconnect', function() {
-            updateStatus('disconnected', 'Getrennt');
+            updateStatus('dsconnected', 'Getrennt');
         });
 
         socket.on('playerConnected', function(data) {
@@ -818,6 +844,7 @@
         });
 
         socket.on('gamesList', function(games) {
+            console.log('Received games list:', games);
             updateGamesList(games);
         });
 
@@ -846,8 +873,8 @@
                 if (readyElement) {
                     if (player.ready) {
                         readyElement.textContent = 'Bereit ✓';
-                      readyElement.style.color = '#2ecc71';
-                    } else {
+                        readyElement.style.color = '#2ecc71';
+                  } else {
                         readyElement.textContent = 'Warten...';
                         readyElement.style.color = '#f39c12';
                     }
@@ -873,13 +900,26 @@
             playerHand = data.playerHand || [];
             console.log('Neue playerHand:', playerHand);
             updateGame();
-            updaePlayerHand();
+            updatePlayerHand();
         });
 
         socket.on('bluffResult', function(data) {
             console.log('Bluff Result:', data);
-            var message = data.message + '\n\nGespielte Karten: ' + data.actualCards.map(function(c) { return c.value + c.suit; }).join(', ');
+            var cardList = data.actualCards.map(function(c) { 
+                return c.value + c.suit; 
+            }).join(', ');
+            var message = data.message + '\n\nGespielte Karten: ' + cardList;
             showMessage('bluff-result', message);
+        });
+
+        socket.on('quadsRemoved', function(data) {
+            console.log('Quads removed:', data);
+            showMessage('success', data.player + ' hatte 4x ' + data.value + ' - diese wurden entfernt!');
+        });
+
+        socket.on('playerLostAces', function(data) {
+            console.log('Player lost with aces:', data);
+            showMessage('error', data.player + ' hat 4 Asse und verliert das Spiel!');
         });
 
         socket.on('nameChanged', function(data) {
@@ -895,7 +935,6 @@
             showMessage('error', data.message);
         });
 
-        // Initial laden
         setTimeout(function() {
             refreshGames();
         }, 1000);
