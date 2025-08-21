@@ -306,6 +306,8 @@ io.on('connection', (socket) => {
                 broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
             } else if (game.lastAction.type === 'playerLostAces') {
                 broadcastSpecialEvent(player.gameId, 'playerLostAces', game.lastAction);
+            } else if (game.lastAction.type === 'gameWon') {
+                broadcastSpecialEvent(player.gameId, 'gameWon', game.lastAction);
             }
             
             // Always send game update
@@ -339,6 +341,7 @@ io.on('connection', (socket) => {
                 player.gameId = null;
                 player.ready = false;
                 
+                // Lösche leere Lobbys, auch wenn das Spiel läuft
                 if (game.players.length === 0) {
                     games.delete(player.gameId);
                     console.log('🗑️ Leeres Spiel gelöscht');
@@ -360,8 +363,10 @@ io.on('connection', (socket) => {
             if (game) {
                 game.removePlayer(socket.id);
                 
+                // Lösche leere Lobbys, auch wenn das Spiel läuft
                 if (game.players.length === 0) {
                     games.delete(player.gameId);
+                    console.log('🗑️ Leeres Spiel gelöscht (Disconnect)');
                 } else {
                     io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
                 }

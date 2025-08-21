@@ -334,7 +334,7 @@ class BluffGame {
             value: claimedValue,
             count: claimedCount,
             player: player,
-            actualCards: playedCards
+            actualCards: playedCards // Nur die letzten gelegten Karten
         };
 
         this.canCallBluff = true;
@@ -348,22 +348,11 @@ class BluffGame {
             message: player.name + ' behauptet ' + claimedCount + ' x ' + claimedValue.name + ' gespielt zu haben.'
         };
 
-        // GEWINNLOGIK: Prüfe auf Gewinner
+        // GEWINNLOGIK: Prüfe auf Gewinner erst nach dem nächsten Zug
+        // Der Spieler gewinnt nicht sofort, sondern erst wenn der nächste Spieler seinen Zug beendet
+        // und der Bluff-Check zeigt, dass er nicht gelogen hat
         if (player.getCardCount() === 0) {
-            this.gameState = 'finished';
-            this.winner = player;
-            this.loser = null; // Sicherstellen dass nur winner ODER loser gesetzt ist
-            this.lastAction = {
-                type: 'gameWon',
-                winner: player.name,
-                message: player.name + ' hat gewonnen!'
-            };
-            return;
-        }
-
-        // EINFACHE NACHRICHT: Warnung bei letzter Karte (kein potential winner mehr)
-        if (player.getCardCount() === 1) {
-            this.lastAction.message += ' ' + player.name + ' hat nur noch 1 Karte!';
+            this.lastAction.message += ' ' + player.name + ' hat alle Karten gelegt!';
         }
 
         // Nächster Spieler
@@ -390,8 +379,8 @@ class BluffGame {
             throw new Error("Du bist nicht der nächste Spieler und kannst daher keinen Bluff rufen");
         }
 
-        // Überprüfe die tatsächlich gespielten Karten
-        const actualCount = this.lastClaim.actualCards.filter(card => 
+        // Überprüfe die Gesamtanzahl der behaupteten Karten im Stapel
+        const actualCount = this.centerPile.filter(card => 
             card.value.value === this.lastClaim.value.value
         ).length;
 
@@ -421,6 +410,17 @@ class BluffGame {
             
             // Prüfe Anzweifler auf 4 gleiche Karten nach Kartenaufnahme
             this.checkPlayerForQuads(caller);
+            
+            // GEWINNLOGIK: Wenn der Spieler, der die Wahrheit gesagt hat, alle Karten gelegt hatte
+            // UND jetzt nach der Kartenaufnahme des Anzweiflers immer noch keine Karten hat
+            if (liar.getCardCount() === 0) {
+                this.gameState = 'finished';
+                this.winner = liar;
+                this.loser = null;
+                bluffResult.type = 'gameWon';
+                bluffResult.winner = liar.name;
+                bluffResult.message = liar.name + ' hat gewonnen, da alle Karten korrekt gelegt wurden!';
+            }
             
         } else {
             // WAR ein Bluff - Behauptung war gelogen
