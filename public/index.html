@@ -20,7 +20,13 @@
                 </div>
             </div>
 
-            <!-- Removed Cards Panel -->
+            <!-- NEU: 4er-Kombinationen Panel (Links) -->
+            <quads-removed-panel 
+                :removed-quads="removedQuads"
+                @clear="clearRemovedQuads"
+            ></quads-removed-panel>
+
+            <!-- Removed Cards Panel (für andere entfernte Karten) -->
             <removed-cards-panel 
                 :removed-cards="removedCards"
                 @clear="clearRemovedCards"

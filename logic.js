@@ -1,11 +1,16 @@
-﻿const Color = {
+﻿// Bluff Kartenspiel - Game Logic
+
+// Farben Definition
+const Color = {
     HEARTS: 'hearts',
     DIAMONDS: 'diamonds', 
     CLUBS: 'clubs',
     SPADES: 'spades'
 };
 
+// Kartenwerte Definition
 const Value = {
+    ACE: { name: 'A', value: 1 },
     TWO: { name: '2', value: 2 },
     THREE: { name: '3', value: 3 },
     FOUR: { name: '4', value: 4 },
@@ -17,31 +22,35 @@ const Value = {
     TEN: { name: '10', value: 10 },
     JACK: { name: 'J', value: 11 },
     QUEEN: { name: 'Q', value: 12 },
-    KING: { name: 'K', value: 13 },
-    ACE: { name: 'A', value: 14 }
+    KING: { name: 'K', value: 13 }
 };
 
+// Karte Klasse
 class Card {
     constructor(value, color) {
         this.value = value;
         this.color = color;
-        this.id = value.name + '_' + color;
     }
-    
+
     toString() {
-        return this.value.name + ' of ' + this.color;
+        return `${this.value.name} of ${this.color}`;
     }
-    
+
     toJSON() {
         return {
-            id: this.id,
+            id: `${this.value.value}_${this.color}`,
             value: this.value.name,
-            suit: this.color,
+            color: this.color,
             numericValue: this.value.value
         };
     }
+
+    equals(other) {
+        return this.value.value === other.value.value && this.color === other.color;
+    }
 }
 
+// Deck Klasse
 class Deck {
     constructor() {
         this.cards = [];
@@ -50,9 +59,12 @@ class Deck {
 
     createDeck() {
         this.cards = [];
-        for (let colorKey in Color) {
-            for (let valueKey in Value) {
-                this.cards.push(new Card(Value[valueKey], Color[colorKey]));
+        const colors = Object.values(Color);
+        const values = Object.values(Value);
+
+        for (let color of colors) {
+            for (let value of values) {
+                this.cards.push(new Card(value, color));
             }
         }
     }
@@ -60,80 +72,90 @@ class Deck {
     shuffle() {
         for (let i = this.cards.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            let temp = this.cards[i];
-            this.cards[i] = this.cards[j];
-            this.cards[j] = temp;
+            [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
         }
     }
 
-    draw() {
-        if (this.cards.length === 0) {
-            throw new Error("Deck ist leer!");
-        }
+    dealCard() {
         return this.cards.pop();
     }
 
-    size() {
+    getSize() {
         return this.cards.length;
-    }
-
-    isEmpty() {
-        return this.cards.length === 0;
     }
 }
 
+// Spieler Klasse
 class BluffPlayer {
     constructor(id, name) {
         this.id = id;
         this.name = name;
         this.hand = [];
-        this.index = null;
+        this.index = 0;
     }
 
-    receiveCard(card) {
+    addCard(card) {
         this.hand.push(card);
     }
 
-    clearCards() {
-        this.hand = [];
+    removeCard(cardId) {
+        const index = this.hand.findIndex(card => card.toJSON().id === cardId);
+        if (index === -1) {
+            throw new Error(`Karte ${cardId} nicht in der Hand gefunden`);
+        }
+        return this.hand.splice(index, 1)[0];
+    }
+
+    removeCards(cardIds) {
+        const removedCards = [];
+        for (let cardId of cardIds) {
+            removedCards.push(this.removeCard(cardId));
+        }
+        return removedCards;
     }
 
     getHand() {
         return this.hand;
     }
 
-    removeCards(cardIds) {
-        const removedCards = [];
-        cardIds.forEach(cardId => {
-            const index = this.hand.findIndex(card => card.id === cardId);
-            if (index !== -1) {
-                removedCards.push(this.hand.splice(index, 1)[0]);
-            }
-        });
-        return removedCards;
-    }
-
-    hasCards(cardIds) {
-        return cardIds.every(cardId => 
-            this.hand.some(card => card.id === cardId)
-        );
-    }
-
     getCardCount() {
         return this.hand.length;
     }
+
+    clearCards() {
+        this.hand = [];
+    }
+
+    hasCard(cardId) {
+        return this.hand.some(card => card.toJSON().id === cardId);
+    }
 }
 
+// Hauptspiel Klasse
 class BluffGame {
     constructor(gameId) {
         this.gameId = gameId;
-        this.deck = new Deck();
         this.players = [];
+        this.deck = new Deck();
         this.centerPile = [];
         this.currentPlayerIndex = 0;
         this.gameState = 'waiting';
         this.winner = null;
-        this.loser = null;
+        this.loser = null; // NEU: Für losing screen
+        this.lastAction = null;
+        this.lastClaim = null;
+        this.canCallBluff = false;
+        this.lastPlayerToPlay = null;
+    }
+
+    reset() {
+        this.players.forEach(player => player.clearCards());
+        this.deck = new Deck();
+        this.centerPile = [];
+        this.currentPlayerIndex = 0;
+        this.gameState = 'waiting';
+        this.winner = null;
+        this.loser = null; // NEU: Reset loser
         this.lastAction = null;
         this.lastClaim = null;
         this.canCallBluff = false;
@@ -183,7 +205,7 @@ class BluffGame {
         
         while (retry < maxRetries) {
             this.gameState = 'playing';
-            this.deck.createDeck(); // Neues Deck erstellen
+            this.deck.createDeck();
             this.deck.shuffle();
             
             // Alle Spieler leeren
@@ -194,7 +216,6 @@ class BluffGame {
             this.lastClaim = null;
             this.canCallBluff = false;
             this.lastPlayerToPlay = null;
-            this.potentialWinner = null; // Reset potential winner
             
             // Prüfe auf 4 Asse beim Auteilen
             let someoneHasFourAces = false;
@@ -210,114 +231,64 @@ class BluffGame {
             if (!someoneHasFourAces) {
                 // Prüfe auf andere 4er-Kombinationen (die entfernt werden)
                 // UND auf 4 Asse nach dem Entfernen!
-                this.checkAllPlayersForQuads();
+                let foundQuads = false;
+                let continueChecking = true;
                 
-                // Prüfe nochmal auf 4 Asse nach Quad-Entfernung
+                while (continueChecking) {
+                    continueChecking = false;
+                    
+                    for (let player of this.players) {
+                        if (this.checkPlayerForQuads(player)) {
+                            foundQuads = true;
+                            continueChecking = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Wenn jemand durch 4er-Entfernung 4 Asse bekommen hat, neu mischen
                 for (let player of this.players) {
                     if (this.playerHasFourAces(player)) {
                         someoneHasFourAces = true;
-                        console.log(`⚠️ ${player.name} hat 4 Asse nach Quad-Entfernung - Spiel neu starten`);
+                        console.log(`⚠️ ${player.name} hat nach 4er-Entfernung 4 Asse - Karten werden neu gemischt`);
                         break;
                     }
                 }
                 
-                // Wenn immer noch jemand 4 Asse hat, neu mischen
-                if (someoneHasFourAces) {
-                    retry++;
-                    continue;
+                if (!someoneHasFourAces) {
+                    console.log(`✅ Spiel gestartet nach ${retry + 1} Versuch(en). Entfernte 4er-Kombinationen: ${foundQuads ? 'Ja' : 'Nein'}`);
+                    return;
                 }
-                
-                this.lastAction = {
-                    type: 'gameStarted',
-                    message: this.getCurrentPlayer().name + ' beginnt!'
-                };
-                
-                console.log(`✅ Spiel erfolgreich gestartet nach ${retry + 1} Versuchen`);
-                console.log(`📊 Kartenverteilung: ${this.players.map(p => p.name + ':' + p.getCardCount()).join(', ')}`);
-                return; // Erfolgreich gestartet
             }
             
             retry++;
         }
         
-        // Falls nach maxRetries immer noch jemand 4 Asse hat
-        throw new Error("Konnte kein faires Spiel starten - zu viele Versuche");
-    }
-
-    // Neue Hilfsfunktion: Prüft ob ein Spieler 4 Asse hat
-    playerHasFourAces(player) {
-        const aces = player.hand.filter(card => card.value.value === 14);
-        return aces.length === 4;
-    }
-
-    // Geänderte Funktion: Prüfe auf 4 gleiche Karten (aber nicht Asse)
-    checkAllPlayersForQuads() {
-        for (let player of this.players) {
-            this.checkPlayerForQuads(player);
-        }
-    }
-
-    checkPlayerForQuads(player) {
-        const valueGroups = {};
-        
-        // Karten nach Werten gruppieren
-        player.hand.forEach(card => {
-            const value = card.value.value;
-            if (!valueGroups[value]) {
-                valueGroups[value] = [];
-            }
-            valueGroups[value].push(card);
-        });
-
-        // Suche nach 4 gleichen Werten
-        for (let value in valueGroups) {
-            const cards = valueGroups[value];
-            
-            if (cards.length === 4) {
-                // 4 Asse = Spieler verliert sofort
-                if (parseInt(value) === 14) {
-                    this.gameState = 'finished';
-                    this.loser = player;
-                    this.lastAction = {
-                        type: 'playerLostAces',
-                        player: player.name,
-                        message: player.name + ' hat 4 Asse und verliert das Spiel!'
-                    };
-                    return;
-                }
-                
-                // 4 andere gleiche Karten - entfernen (nur wenn nicht Asse)
-                cards.forEach(card => {
-                    const index = player.hand.findIndex(c => c.id === card.id);
-                    if (index !== -1) {
-                        player.hand.splice(index, 1);
-                    }
-                });
-                
-                this.lastAction = {
-                    type: 'quadsRemoved',
-                    player: player.name,
-                    value: cards[0].value.name,
-                    message: player.name + ' hatte 4x ' + cards[0].value.name + ' - diese wurden entfernt!'
-                };
-                
-                return; // Nur einen Quad pro Runde entfernen
-            }
+        if (retry >= maxRetries) {
+            console.log('⚠️ Maximale Versuche erreicht, starte Spiel trotz möglicher 4 Asse');
         }
     }
 
     dealCards() {
-        let playerIndex = 0;
-        while (!this.deck.isEmpty()) {
-            const card = this.deck.draw();
-            this.players[playerIndex].receiveCard(card);
-            playerIndex = (playerIndex + 1) % this.players.length;
+        const cardsPerPlayer = Math.floor(52 / this.players.length);
+        
+        for (let i = 0; i < cardsPerPlayer; i++) {
+            for (let player of this.players) {
+                if (this.deck.getSize() > 0) {
+                    player.addCard(this.deck.dealCard());
+                }
+            }
         }
     }
 
+    playerHasFourAces(player) {
+        const aceCount = player.hand.filter(card => card.value.value === 1).length;
+        return aceCount >= 4;
+    }
+
+    // FIXED playCards method - Mit Winner/Loser System
     playCards(playerId, cardIds, claimedCount, claimedValue) {
         if (this.gameState !== 'playing') {
-            console.log('❌ Spiel läuft nicht - gameState:', this.gameState);
             throw new Error("Spiel läuft nicht");
         }
 
@@ -330,17 +301,12 @@ class BluffGame {
             throw new Error("Du bist nicht am Zug");
         }
 
-        if (!player.hasCards(cardIds)) {
-            throw new Error("Du hast diese Karten nicht");
+        if (!cardIds || cardIds.length === 0) {
+            throw new Error("Keine Karten ausgewählt");
         }
 
-        if (cardIds.length !== claimedCount) {
-            throw new Error("Anzahl der Karten stimmt nicht überein");
-        }
-
-        // WICHTIG: Asse können nicht behauptet werden
-        if (claimedValue.value === 14) {
-            throw new Error("Asse können nicht behauptet werden!");
+        if (!claimedValue || !claimedValue.value) {
+            throw new Error("Ungültiger Kartenwert");
         }
 
         // Neue Bluff-Regeln
@@ -382,10 +348,11 @@ class BluffGame {
             message: player.name + ' behauptet ' + claimedCount + ' x ' + claimedValue.name + ' gespielt zu haben.'
         };
 
-        // EINFACHE GEWINNLOGIK: Prüfe auf Gewinner
+        // GEWINNLOGIK: Prüfe auf Gewinner
         if (player.getCardCount() === 0) {
             this.gameState = 'finished';
             this.winner = player;
+            this.loser = null; // Sicherstellen dass nur winner ODER loser gesetzt ist
             this.lastAction = {
                 type: 'gameWon',
                 winner: player.name,
@@ -394,7 +361,7 @@ class BluffGame {
             return;
         }
 
-        // LETZTE KARTE WARNUNG
+        // EINFACHE NACHRICHT: Warnung bei letzter Karte (kein potential winner mehr)
         if (player.getCardCount() === 1) {
             this.lastAction.message += ' ' + player.name + ' hat nur noch 1 Karte!';
         }
@@ -403,6 +370,7 @@ class BluffGame {
         this.nextPlayer();
     }
 
+    // FIXED callBluff method - Korrigierte nächster Spieler Logik
     callBluff(callerId) {
         if (this.gameState !== 'playing') {
             throw new Error("Spiel läuft nicht");
@@ -482,12 +450,61 @@ class BluffGame {
         this.lastClaim = null;
         this.canCallBluff = false;
         this.lastPlayerToPlay = null;
-        
-        // WICHTIG: Potentieller Gewinner Status bleibt bestehen, außer er wurde oben geändert
 
         this.lastAction = bluffResult;
 
         return bluffResult;
+    }
+
+    // FIXED checkPlayerForQuads - Setzt loser richtig
+    checkPlayerForQuads(player) {
+        const valueCounts = {};
+        
+        // Zähle Karten nach Wert
+        player.hand.forEach(card => {
+            const value = card.value.value;
+            valueCounts[value] = (valueCounts[value] || 0) + 1;
+        });
+        
+        // Prüfe auf 4er-Kombination
+        for (let value in valueCounts) {
+            if (valueCounts[value] >= 4) {
+                if (value === '1') { // Asse (value 1)
+                    // SPIELER VERLIERT - hat 4 Asse
+                    this.gameState = 'finished';
+                    this.loser = player;
+                    this.winner = null; // Sicherstellen dass nur winner ODER loser gesetzt ist
+                    this.lastAction = {
+                        type: 'playerLostAces',
+                        player: player.name,
+                        message: player.name + ' hat 4 Asse und verliert das Spiel!'
+                    };
+                    return true;
+                } else {
+                    // Normale 4er werden entfernt
+                    const cardsToRemove = [];
+                    let removed = 0;
+                    
+                    for (let i = player.hand.length - 1; i >= 0 && removed < 4; i--) {
+                        if (player.hand[i].value.value === parseInt(value)) {
+                            cardsToRemove.push(player.hand.splice(i, 1)[0]);
+                            removed++;
+                        }
+                    }
+                    
+                    this.lastAction = {
+                        type: 'quadsRemoved',
+                        player: player.name,
+                        value: cardsToRemove[0].value.name,
+                        count: 4,
+                        message: player.name + ' hatte 4x ' + cardsToRemove[0].value.name + ' - diese wurden entfernt!'
+                    };
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 
     getSuitSymbol(suit) {
@@ -504,6 +521,7 @@ class BluffGame {
         this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     }
 
+    // FIXED getPublicGameState - Entfernt potentialWinner, fügt loser hinzu
     getPublicGameState() {
         return {
             gameId: this.gameId,
@@ -524,8 +542,9 @@ class BluffGame {
                 player: this.lastClaim.player.name
             } : null,
             winner: this.winner ? this.winner.name : null,
-            potentialWinner: this.potentialWinner ? this.potentialWinner.name : null,
+            loser: this.loser ? this.loser.name : null, // NEU: Für losing screen
             canCallBluff: this.canCallBluff
+            // potentialWinner ENTFERNT
         };
     }
 

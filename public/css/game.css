@@ -1,181 +1,239 @@
-/* Base Styles */
-body {
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #0f3460, #16537e);
-    color: white;
+/* Bluff Kartenspiel CSS - FIXED mit 4er-Liste */
+
+* {
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
     overflow-x: hidden;
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
+    padding: 20px;
+    position: relative;
 }
 
-/* Status & Buttons */
+/* Header & Status */
+h1 {
+    color: #ffffff;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    margin-bottom: 10px;
+}
+
 .status {
-    padding: 10px 20px;
-    border-radius: 25px;
-    display: inline-block;
-    margin: 10px;
+    padding: 8px 15px;
+    border-radius: 20px;
     font-weight: bold;
+    display: inline-block;
+    margin: 5px;
 }
 
 .status.connected { 
     background: rgba(46, 204, 113, 0.3); 
+    border: 1px solid #2ecc71; 
 }
 
 .status.disconnected { 
     background: rgba(231, 76, 60, 0.3); 
+    border: 1px solid #e74c3c; 
 }
 
+/* Buttons */
 .btn {
     padding: 12px 24px;
     border: none;
-    border-radius: 25px;
-    font-weight: bold;
+    border-radius: 8px;
     cursor: pointer;
-    margin: 5px;
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
+    font-weight: bold;
+    margin: 8px;
     transition: all 0.3s ease;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.btn:hover { 
-    transform: translateY(-2px); 
-}
-
-.btn:disabled { 
-    opacity: 0.5; 
-    cursor: not-allowed;
-    transform: none;
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
 .btn-success { 
     background: linear-gradient(135deg, #2ecc71, #27ae60); 
 }
 
-.btn-warning { 
-    background: linear-gradient(135deg, #f39c12, #d68910); 
-}
-
 .btn-danger { 
     background: linear-gradient(135deg, #e74c3c, #c0392b); 
 }
 
-.btn-bluff {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    font-size: 20px;
-    padding: 20px 40px;
-    animation: pulse 2s infinite;
-    border: 3px solid #fff;
+.btn-warning { 
+    background: linear-gradient(135deg, #f39c12, #e67e22); 
 }
 
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+.btn-bluff {
+    background: linear-gradient(135deg, #e74c3c, #8b0000);
+    font-size: 24px;
+    padding: 20px 40px;
+    box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+}
+
+.btn-bluff:hover {
+    background: linear-gradient(135deg, #c0392b, #8b0000);
+    transform: translateY(-4px) scale(1.05);
+}
+
+.btn-disabled {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* Game Cards */
+.game-card {
+    background: rgba(52, 73, 94, 0.8);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+    border-color: #3498db;
+    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
+}
+
+/* Player Cards */
+.player-card {
+    background: rgba(52, 73, 94, 0.6);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px;
+    border: 2px solid #34495e;
 }
 
 /* Game Table */
 .game-table {
-    position: relative;
-    width: 800px;
-    height: 500px;
-    margin: 20px auto;
-    background: radial-gradient(ellipse, #2d5a27, #1a3317);
-    border-radius: 50%;
-    border: 8px solid #8B4513;
-    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.2);
+    border-radius: 20px;
+    padding: 30px;
+    margin: 20px 0;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
-.table-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    background: rgba(0,0,0,0.3);
+.center-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.center-pile {
+    background: rgba(44, 62, 80, 0.8);
     padding: 20px;
     border-radius: 15px;
+    text-align: center;
+    border: 3px solid #34495e;
     min-width: 200px;
 }
 
-.player-seat {
-    position: absolute;
-    background: rgba(255,255,255,0.1);
+.last-claim {
+    background: rgba(241, 196, 15, 0.2);
     border-radius: 10px;
     padding: 15px;
+    margin-top: 15px;
+    border: 1px solid #f1c40f;
+}
+
+.players-circle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.player-spot {
+    background: rgba(52, 73, 94, 0.7);
+    padding: 15px;
+    border-radius: 12px;
     text-align: center;
+    border: 2px solid #34495e;
     min-width: 120px;
-    backdrop-filter: blur(5px);
+    position: relative;
 }
 
-.player-seat.current-turn {
-    border: 3px solid #f39c12;
-    background: rgba(243, 156, 18, 0.2);
-    animation: glow 1.5s ease-in-out infinite alternate;
+.player-spot.current-player {
+    border-color: #f39c12;
+    background: rgba(243, 156, 18, 0.3);
+    animation: pulse 2s infinite;
 }
 
-@keyframes glow {
-    from { box-shadow: 0 0 5px #f39c12; }
-    to { box-shadow: 0 0 20px #f39c12; }
+.player-spot.my-player {
+    border-color: #2ecc71;
+    background: rgba(46, 204, 113, 0.3);
 }
 
-/* Player Seat Positions */
-.seat-bottom { 
-    bottom: -60px; 
-    left: 50%; 
-    transform: translateX(-50%); 
+.current-indicator {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f39c12;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
 }
 
-.seat-top { 
-    top: -60px; 
-    left: 50%; 
-    transform: translateX(-50%); 
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(243, 156, 18, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); }
 }
 
-.seat-left { 
-    left: -80px; 
-    top: 50%; 
-    transform: translateY(-50%); 
-}
-
-.seat-right { 
-    right: -80px; 
-    top: 50%; 
-    transform: translateY(-50%); 
-}
-
-.seat-bottom-left { 
-    bottom: -40px; 
-    left: 100px; 
-}
-
-.seat-bottom-right { 
-    bottom: -40px; 
-    right: 100px; 
-}
-
-/* Cards & Hand */
-.my-hand {
-    margin: 30px auto;
-    max-width: 800px;
-    background: rgba(0,0,0,0.3);
+/* Player Hand */
+.player-hand {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.9);
     padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-    text-align: center;
+    backdrop-filter: blur(15px);
+    border-top: 2px solid #34495e;
+}
+
+.hand-cards {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 .card {
     width: 60px;
-    height: 85px;
+    height: 90px;
     border-radius: 8px;
-    display: inline-flex;
-    flex-direction: column;
-    justify-content: center;
+    display: flex;
     align-items: center;
+    justify-content: center;
     cursor: pointer;
     font-weight: bold;
     border: 2px solid #34495e;
@@ -231,6 +289,13 @@ input, select {
     border-radius: 5px;
     margin: 5px;
     color: #2c3e50;
+    width: 100%;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
 }
 
 /* Messages */
@@ -264,70 +329,177 @@ input, select {
     white-space: pre-line;
 }
 
-/* Game Cards & Players */
-.game-card {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 20px;
-    margin: 10px 0;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.game-card:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-5px);
-}
-
-.player-card {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px;
-    text-align: center;
-}
-
-/* Removed Cards Panel */
-.removed-cards-panel {
+/* FIXED: Panels - Mit besserer Positionierung */
+/* NEU: 4er-Kombinationen Panel (Links oben) */
+.quads-removed-panel {
     position: fixed;
     top: 20px;
-    left: 10px;
+    left: 20px;
+    background: rgba(231, 76, 60, 0.9); /* Rötlicher Hintergrund für 4er */
+    padding: 15px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    max-width: 250px;
+    border: 2px solid #e74c3c;
+}
+
+.quads-entries {
+    max-height: 150px;
+    overflow-y: auto;
+    margin: 10px 0;
+}
+
+.quads-entry {
+    background: rgba(192, 57, 43, 0.5);
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Entfernte Karten Panel (Links, unter 4er-Panel) */
+.removed-cards-panel {
+    position: fixed;
+    top: 220px; /* Unter dem 4er-Panel */
+    left: 20px;
     background: rgba(0,0,0,0.8);
     padding: 15px;
-    border-radius: 10px;
-    z-index: 9998;
-    font-size: 14px;
-    max-width: 200px;
-    max-height: 400px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    max-width: 250px;
+    border: 1px solid #34495e;
+}
+
+.removed-entries {
+    max-height: 150px;
     overflow-y: auto;
+    margin: 10px 0;
 }
 
-.removed-cards-panel h4 {
-    margin: 0 0 10px 0;
-    color: #f39c12;
+.removed-entry {
+    background: rgba(52, 73, 94, 0.5);
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
-.removed-card-group {
+/* Gespielte Karten Panel (Unten links) */
+.played-cards-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.8);
+    padding: 15px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    max-width: 300px;
+    border: 1px solid #34495e;
+}
+
+/* WINNING & LOSING SCREENS */
+.end-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.winning-screen {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.losing-screen {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.end-content {
+    text-align: center;
+    background: rgba(0,0,0,0.8);
+    padding: 50px;
+    border-radius: 20px;
+    backdrop-filter: blur(15px);
+    max-width: 500px;
+    border: 3px solid rgba(255,255,255,0.2);
+}
+
+.trophy {
+    font-size: 80px;
+    margin-bottom: 20px;
+    animation: bounce 2s infinite;
+}
+
+.skull {
+    font-size: 80px;
+    margin-bottom: 20px;
+    animation: shake 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-20px); }
+    60% { transform: translateY(-10px); }
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+.end-content h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.winner-info, .loser-info {
+    margin: 20px 0;
+    font-size: 18px;
+}
+
+.final-stats {
+    margin: 30px 0;
+    padding: 20px;
     background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+
+.final-stats h3 {
+    margin-bottom: 15px;
+    font-size: 24px;
+}
+
+.player-result {
     padding: 8px;
     margin: 5px 0;
     border-radius: 5px;
-    border-left: 3px solid #e74c3c;
+    background: rgba(255,255,255,0.1);
 }
 
-.removed-card-group .player-name {
+.winner-name {
+    color: #f1c40f;
     font-weight: bold;
-    color: #3498db;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
 }
 
-.removed-card-group .cards {
-    color: #ecf0f1;
-    font-size: 12px;
+.loser-name {
+    color: #ff4757;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Vue Transitions */
+/* Animations */
 .fade-enter-active, .fade-leave-active {
-    transition: opacity 0.3s;
+    transition: opacity 0.5s;
 }
 
 .fade-enter-from, .fade-leave-to {
@@ -335,25 +507,48 @@ input, select {
 }
 
 /* Responsive Design */
-@media (max-width: 900px) {
-    .game-table {
-        width: 600px;
-        height: 400px;
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
     }
     
     .game-controls {
         position: relative;
-        margin: 20px auto;
+        top: auto;
+        right: auto;
+        margin: 20px 0;
         max-width: 100%;
     }
     
-    .my-hand {
-        margin: 20px 10px;
-    }
-    
-    .removed-cards-panel {
+    .player-hand {
         position: relative;
-        margin: 10px;
+        bottom: auto;
+    }
+    
+    .removed-cards-panel, .played-cards-panel, .quads-removed-panel {
+        position: relative;
+        top: auto;
+        left: auto;
+        bottom: auto;
+        margin: 20px 0;
         max-width: 100%;
+    }
+    
+    .center-area {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .end-content {
+        margin: 20px;
+        padding: 30px;
+    }
+    
+    .end-content h1 {
+        font-size: 28px;
+    }
+    
+    .trophy, .skull {
+        font-size: 60px;
     }
 }

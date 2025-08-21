@@ -1,4 +1,4 @@
-// Haupt Vue.js App für das Bluff Kartenspiel
+// Haupt Vue.js App für das Bluff Kartenspiel - FIXED mit 4er-Liste
 
 const { createApp } = Vue;
 
@@ -12,6 +12,7 @@ const BluffGameApp = createApp({
         GameTable: window.GameTable,
         PlayerHand: window.PlayerHand,
         RemovedCardsPanel: window.RemovedCardsPanel,
+        QuadsRemovedPanel: window.QuadsRemovedPanel, // NEU: 4er-Liste
         PlayedCardsPanel: window.PlayedCardsPanel
     },
     
@@ -34,6 +35,7 @@ const BluffGameApp = createApp({
             playerHand: [],
             selectedCards: [],
             removedCards: [],
+            removedQuads: [], // NEU: Separate Liste für 4er-Kombinationen
             gameMessages: [],
             isReady: false,
             
@@ -135,7 +137,7 @@ const BluffGameApp = createApp({
             window.SocketAPI.callBluff();
         },
 
-        // Removed Cards Management
+        // FIXED: Separate Methods für Removed Cards vs Quads
         addRemovedCards(playerName, cardValue, count = 4) {
             this.removedCards.push({
                 id: Date.now() + Math.random(),
@@ -147,9 +149,26 @@ const BluffGameApp = createApp({
             console.log('🗑️ Karten entfernt:', { playerName, cardValue, count });
         },
 
+        // NEU: Separate Method für 4er-Kombinationen
+        addRemovedQuads(playerName, cardValue) {
+            this.removedQuads.push({
+                id: Date.now() + Math.random(),
+                player: playerName,
+                value: cardValue,
+                timestamp: new Date()
+            });
+            console.log('🗑️ 4er-Kombination entfernt:', { playerName, cardValue });
+        },
+
         clearRemovedCards() {
             this.removedCards = [];
             console.log('🧹 Entfernte Karten Liste geleert');
+        },
+
+        // NEU: Clear method für 4er-Liste
+        clearRemovedQuads() {
+            this.removedQuads = [];
+            console.log('🧹 4er-Kombinationen Liste geleert');
         },
 
         // Message System
@@ -179,6 +198,7 @@ const BluffGameApp = createApp({
             this.gameData = null;
             this.playerHand = [];
             this.selectedCards = [];
+            this.removedQuads = []; // NEU: Reset 4er-Liste
             this.isReady = false;
             this.gameMessages = [];
             console.log('🔄 Spielstatus zurückgesetzt');
@@ -187,6 +207,13 @@ const BluffGameApp = createApp({
         clearGameState() {
             this.selectedCards = [];
             this.gameMessages = [];
+        },
+
+        // FIXED: Clear both lists when starting new game
+        clearRemovedCardsAndQuads() {
+            this.removedCards = [];
+            this.removedQuads = [];
+            console.log('🧹 Alle Listen geleert');
         },
 
         // Utility
@@ -202,6 +229,7 @@ const BluffGameApp = createApp({
             console.log('Player Hand:', this.playerHand);
             console.log('Selected Cards:', this.selectedCards);
             console.log('Removed Cards:', this.removedCards);
+            console.log('Removed Quads:', this.removedQuads); // NEU
             console.log('Messages:', this.gameMessages);
             console.log('Current Screen:', this.currentScreen);
             console.log('========================');

@@ -1,4 +1,4 @@
-// Socket.IO Event Handlers für das Bluff Kartenspiel
+// Socket.IO Event Handlers für das Bluff Kartenspiel - FIXED mit 4er-Liste
 
 window.initSocketHandlers = function(app) {
     const socket = io();
@@ -38,12 +38,24 @@ window.initSocketHandlers = function(app) {
         app.clearGameState();
     });
 
+    // FIXED gameUpdate - Mit Winner/Loser Screen Logic
     socket.on('gameUpdate', (data) => {
         app.gameData = data;
+        
+        // Screen Logic based on game state
         if (data.gameState === 'waiting') {
             app.currentScreen = 'lobby';
         } else if (data.gameState === 'playing') {
             app.currentScreen = 'game';
+        } else if (data.gameState === 'finished') {
+            // Determine winner or loser - ENTWEDER winner ODER loser
+            if (data.winner) {
+                app.currentScreen = 'winning';
+                app.showMessage('success', data.winner + ' hat gewonnen!');
+            } else if (data.loser) {
+                app.currentScreen = 'losing';
+                app.showMessage('error', data.loser + ' hat verloren!');
+            }
         }
     });
 
@@ -63,7 +75,7 @@ window.initSocketHandlers = function(app) {
     socket.on('gameStarted', (data) => {
         app.gameData = data;
         app.currentScreen = 'game';
-        app.clearRemovedCards();
+        app.clearRemovedCardsAndQuads(); // FIXED: Clear both lists
         app.clearGameState();
         app.showMessage('success', 'Spiel gestartet! Viel Spaß!');
     });
@@ -80,13 +92,22 @@ window.initSocketHandlers = function(app) {
         app.showMessage('bluff-result', message);
     });
 
+    // FIXED: quadsRemoved geht in separate 4er-Liste
     socket.on('quadsRemoved', (data) => {
         app.showMessage('success', data.player + ' hatte 4x ' + data.value + ' - diese wurden entfernt!');
-        app.addRemovedCards(data.player, data.value, 4);
+        app.addRemovedQuads(data.player, data.value); // NEU: Separate 4er-Liste
     });
 
+    // LOSING EVENT - When player gets 4 aces
     socket.on('playerLostAces', (data) => {
         app.showMessage('error', data.player + ' hat 4 Asse und verliert das Spiel!');
+        // The gameUpdate event will handle screen switching to 'losing'
+    });
+
+    // WINNING EVENT - When someone wins by playing all cards
+    socket.on('gameWon', (data) => {
+        app.showMessage('success', data.winner + ' hat alle Karten gespielt und gewonnen!');
+        // The gameUpdate event will handle screen switching to 'winning'
     });
 
     // Error Handling

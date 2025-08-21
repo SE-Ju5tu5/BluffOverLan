@@ -1,4 +1,4 @@
-// Vue Components für das Bluff Kartenspiel
+// Vue Components für das Bluff Kartenspiel - KOMPLETT GEFIXT
 
 // === MENU SCREEN ===
 window.MenuScreen = {
@@ -67,6 +67,7 @@ window.MenuScreen = {
     }
 };
 
+// === LOBBY SCREEN ===
 window.LobbyScreen = {
     props: ['gameData', 'player', 'isReady'],
     emits: ['toggle-ready', 'leave-game'],
@@ -87,10 +88,10 @@ window.LobbyScreen = {
                 </div>
             </div>
             <button 
-                :class="['btn', isReady ? 'btn-success' : 'btn-warning']"
+                :class="['btn', isReady ? 'btn-warning' : 'btn-success']"
                 @click="$emit('toggle-ready')"
             >
-                {{ isReady ? 'Bereit ✓' : 'Bereit' }}
+                {{ isReady ? 'Nicht bereit' : 'Bereit' }}
             </button>
             <button class="btn btn-danger" @click="$emit('leave-game')">
                 Spiel verlassen
@@ -99,164 +100,143 @@ window.LobbyScreen = {
     `,
     computed: {
         gameTitle() {
-            const count = this.gameData?.players?.length || 0;
-            return `Bluff-Spiel (${count}/6 Spieler)`;
+            if (!this.gameData?.players?.length) return 'Lobby';
+            return `Lobby - ${this.gameData.players.length}/6 Spieler`;
         }
     },
     methods: {
         getReadyColor(playerId) {
-            const player = this.gameData?.players?.find(p => p.id === playerId);
-            return player?.ready ? '#2ecc71' : '#f39c12';
+            return this.isPlayerReady(playerId) ? '#2ecc71' : '#e74c3c';
         },
         getReadyText(playerId) {
+            return this.isPlayerReady(playerId) ? 'Bereit' : 'Nicht bereit';
+        },
+        isPlayerReady(playerId) {
             const player = this.gameData?.players?.find(p => p.id === playerId);
-            return player?.ready ? 'Bereit ✓' : 'Warten...';
+            return player?.ready || false;
         }
     }
 };
 
+// === GAME TABLE ===
 window.GameTable = {
     props: ['gameData', 'player'],
     template: `
         <div class="game-table">
-            <div class="table-center">
-                <div v-if="gameData?.lastClaim">
-                    <h4>Letzte Behauptung:</h4>
-                    <p>{{ lastClaimText }}</p>
+            <div class="center-area">
+                <div class="center-pile">
+                    <h3>Kartenstapel</h3>
+                    <p>{{ gameData?.centerPileCount || 0 }} Karten</p>
+                    
+                    <div v-if="gameData?.lastClaim" class="last-claim">
+                        <h4>Letzte Behauptung:</h4>
+                        <p>{{ gameData.lastClaim.player }} behauptet:</p>
+                        <p><strong>{{ gameData.lastClaim.count }}x {{ gameData.lastClaim.value }}</strong></p>
+                    </div>
                 </div>
-                <div>
-                    <p>Karten in der Mitte: {{ gameData?.centerPileCount || 0 }}</p>
+                
+                <div class="players-circle">
+                    <div 
+                        v-for="p in gameData?.players || []" 
+                        :key="p.id"
+                        :class="['player-spot', { 
+                            'current-player': p.name === gameData?.currentPlayer,
+                            'my-player': p.name === player?.name
+                        }]"
+                    >
+                        <h4>{{ p.name }}</h4>
+                        <p>{{ p.cardCount }} Karten</p>
+                        <div v-if="p.name === gameData?.currentPlayer" class="current-indicator">
+                            🎯 Am Zug
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <div 
-                v-for="(otherPlayer, index) in otherPlayers" 
-                :key="otherPlayer.id"
-                :class="getPlayerSeatClass(otherPlayer, index)"
-            >
-                <h4>{{ otherPlayer.name }}</h4>
-                <p>{{ otherPlayer.cardCount }} Karten</p>
-                <p v-if="isCurrentTurn(otherPlayer)"><strong>Am Zug</strong></p>
             </div>
         </div>
-    `,
-    computed: {
-        otherPlayers() {
-            if (!this.gameData?.players || !this.player) return [];
-            return this.gameData.players.filter(p => p.id !== this.player.id);
-        },
-        lastClaimText() {
-            const claim = this.gameData?.lastClaim;
-            if (!claim) return '';
-            return `${claim.player} behauptet: ${claim.count} x ${claim.value}`;
-        }
-    },
-    methods: {
-        isCurrentTurn(player) {
-            return this.gameData?.currentPlayer === player.name;
-        },
-        getPlayerSeatClass(player, index) {
-            const positions = ['seat-top', 'seat-right', 'seat-bottom-right', 'seat-bottom-left', 'seat-left'];
-            const baseClass = `player-seat ${positions[index % positions.length]}`;
-            return this.isCurrentTurn(player) ? `${baseClass} current-turn` : baseClass;
-        }
-    }
+    `
 };
 
+// === FIXED PLAYER HAND - Mit Kartenfarben ===
 window.PlayerHand = {
-    props: ['cards', 'selectedCards'],
+    props: ['playerHand', 'selectedCards'],
     emits: ['toggle-card'],
     template: `
-        <div class="my-hand">
-            <div style="margin-bottom: 15px;">
-                <h3>Deine Karten ({{ cards?.length || 0 }})</h3>
-            </div>
-            <div>
-                <div v-if="!cards || cards.length === 0" style="color: #888;">
-                    Keine Karten vorhanden
-                </div>
+        <div class="player-hand">
+            <h3>Deine Hand ({{ playerHand?.length || 0 }} Karten)</h3>
+            <div class="hand-cards">
                 <div 
-                    v-for="card in cards" 
+                    v-for="card in playerHand || []" 
                     :key="card.id"
-                    :class="getCardClass(card)"
+                    :class="['card', card.color, { 'selected': isSelected(card.id) }]"
                     @click="$emit('toggle-card', card.id)"
                 >
-                    <div style="font-size: 14px; font-weight: bold;">{{ card.value }}</div>
-                    <div style="font-size: 16px; margin-top: 5px;">{{ getSuitSymbol(card.suit) }}</div>
+                    {{ card.value }}{{ getSuitSymbol(card.color) }}
                 </div>
             </div>
         </div>
     `,
     methods: {
-        getCardClass(card) {
-            const isSelected = this.selectedCards.includes(card.id);
-            return `card ${card.suit}${isSelected ? ' selected' : ''}`;
+        isSelected(cardId) {
+            return this.selectedCards.includes(cardId);
         },
-        getSuitSymbol(suit) {
+        getSuitSymbol(color) {
             const symbols = {
                 hearts: '♥',
                 diamonds: '♦',
                 clubs: '♣',
                 spades: '♠'
             };
-            return symbols[suit] || suit;
+            return symbols[color] || '';
         }
     }
 };
 
-window.RemovedCardsPanel = {
-    props: ['removedCards'],
+// === NEU: 4ER-REMOVED LISTE ===
+window.QuadsRemovedPanel = {
+    props: ['removedQuads'],
     emits: ['clear'],
     template: `
-        <div v-if="removedCards.length > 0" class="removed-cards-panel">
-            <h4>🗑️ Entfernte Karten</h4>
-            <div>
-                <div 
-                    v-for="removed in removedCards" 
-                    :key="removed.id"
-                    class="removed-card-group"
-                >
-                    <div class="player-name">{{ removed.player }}</div>
-                    <div class="cards">{{ removed.count }}x {{ removed.value }}</div>
+        <div v-if="removedQuads && removedQuads.length > 0" class="quads-removed-panel">
+            <h3>🗑️ Entfernte 4er-Kombinationen:</h3>
+            <div class="quads-entries">
+                <div v-for="entry in removedQuads" :key="entry.id" class="quads-entry">
+                    <strong>{{ entry.player }}</strong>: 4x {{ entry.value }}
                 </div>
             </div>
-            <button class="btn" @click="$emit('clear')" style="margin-top: 10px; padding: 5px 10px; font-size: 12px;">
-                Liste leeren
-            </button>
+            <button class="btn btn-small" @click="$emit('clear')">Leeren</button>
         </div>
     `
 };
 
+// === REMOVED CARDS PANEL (für andere entfernte Karten) ===
+window.RemovedCardsPanel = {
+    props: ['removedCards'],
+    emits: ['clear'],
+    template: `
+        <div v-if="removedCards && removedCards.length > 0" class="removed-cards-panel">
+            <h3>📋 Entfernte Karten:</h3>
+            <div class="removed-entries">
+                <div v-for="entry in removedCards" :key="entry.id" class="removed-entry">
+                    <strong>{{ entry.player }}</strong>: {{ entry.count }}x {{ entry.value }}
+                </div>
+            </div>
+            <button class="btn btn-small" @click="$emit('clear')">Leeren</button>
+        </div>
+    `
+};
+
+// === PLAYED CARDS PANEL ===
 window.PlayedCardsPanel = {
     props: ['gameData'],
     template: `
-        <div v-if="showPanel" class="played-cards-panel">
-            <h4>🎯 Aktuelle Runde</h4>
-            
-            <div class="current-claim" v-if="gameData?.lastClaim">
-                <div class="claim-header">
-                    <strong>{{ gameData.lastClaim.player }}</strong> behauptet:
-                </div>
-                <div class="claim-content">
-                    {{ gameData.lastClaim.count }}x {{ gameData.lastClaim.value }}
-                </div>
-            </div>
-            <div class="pile-info">
-                <div class="pile-count">
-                    📚 {{ gameData?.centerPileCount || 0 }} Karten in der Mitte
-                </div>
-            </div>
+        <div v-if="gameData?.lastAction" class="played-cards-panel">
+            <h3>📋 Letzte Aktion:</h3>
+            <p>{{ gameData.lastAction.message }}</p>
         </div>
-    `,
-    computed: {
-        showPanel() {
-            return this.gameData?.gameState === 'playing' && 
-                   (this.gameData?.lastClaim || (this.gameData?.centerPileCount || 0) > 0);
-        }
-    }
+    `
 };
 
-// === GAME SCREEN (Muss nach GameTable und PlayerHand kommen!) ===
+// === FIXED GAME SCREEN - Mit korrigiertem Bluff Button ===
 window.GameScreen = {
     props: ['gameData', 'player', 'playerHand', 'selectedCards', 'messages'],
     emits: ['toggle-card', 'play-cards', 'call-bluff', 'leave-game'],
@@ -287,50 +267,53 @@ window.GameScreen = {
 
             <!-- Game Controls -->
             <div class="game-controls">
-                <!-- Bluff Controls -->
+                <!-- FIXED: Bluff Controls -->
                 <div v-if="showBluffControls" style="text-align: center; margin: 20px 0;">
                     <button class="btn btn-bluff" @click="$emit('call-bluff')">
-                        BLUFF!
+                        🚨 BLUFF! 🚨
                     </button>
-                    <p>Zweifel die Behauptung an!</p>
+                    <p style="margin: 10px 0; font-size: 14px;">
+                        Du kannst die Behauptung anzweifeln!
+                    </p>
                 </div>
-                
-                <!-- Play Controls -->
-                <div v-if="showPlayControls">
-                    <h3>Du bist am Zug!</h3>
-                    
-                    <div v-if="selectedCards.length > 0" class="selection-info">
-                        <div v-html="selectionInfoText"></div>
-                    </div>
-                    
-                    <div>
-                        <label>Wert behaupten:</label>
-                        <select v-model="claimedValue" :disabled="valueDisabled">
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                            <option value="7">7</option>
-                            <option value="8">8</option>
-                            <option value="9">9</option>
-                            <option value="10">10</option>
-                            <option value="11">J</option>
-                            <option value="12">Q</option>
-                            <option value="13">K</option>
-                        </select>
-                        
-                        <button 
-                            class="btn btn-success" 
-                            @click="playCards"
-                            :disabled="!canPlayCards"
-                            :style="{ background: playButtonColor }"
-                        >
-                            {{ playButtonText }}
-                        </button>
-                    </div>
+
+                <!-- Card Selection Info -->
+                <div v-if="gameData?.isCurrentPlayer" class="selection-info">
+                    <div v-html="selectionInfoText"></div>
                 </div>
-                
+
+                <!-- Value Selection for First Play -->
+                <div v-if="gameData?.isCurrentPlayer && !gameData?.lastClaim">
+                    <label>Kartenwert wählen:</label>
+                    <select v-model="claimedValue">
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">J</option>
+                        <option value="12">Q</option>
+                        <option value="13">K</option>
+                    </select>
+                </div>
+
+                <!-- Play Button -->
+                <div v-if="gameData?.isCurrentPlayer">
+                    <button 
+                        :class="['btn', canPlayCards ? 'btn-success' : 'btn-disabled']"
+                        :style="{ background: playButtonColor }"
+                        :disabled="!canPlayCards"
+                        @click="playCards"
+                    >
+                        {{ playButtonText }}
+                    </button>
+                </div>
+
+                <!-- Leave Game -->
                 <button class="btn btn-danger" @click="$emit('leave-game')">
                     Spiel verlassen
                 </button>
@@ -338,7 +321,7 @@ window.GameScreen = {
 
             <!-- Player Hand -->
             <player-hand 
-                :cards="playerHand"
+                :player-hand="playerHand"
                 :selected-cards="selectedCards"
                 @toggle-card="$emit('toggle-card', $event)"
             ></player-hand>
@@ -350,16 +333,11 @@ window.GameScreen = {
         }
     },
     computed: {
+        // FIXED: Korrigierte Bluff Controls Logic
         showBluffControls() {
             return this.gameData?.isCurrentPlayer && 
                    this.gameData?.canCallBluff && 
                    this.gameData?.lastClaim;
-        },
-        showPlayControls() {
-            return this.gameData?.isCurrentPlayer;
-        },
-        valueDisabled() {
-            return !!this.gameData?.lastClaim;
         },
         selectionInfoText() {
             if (this.gameData?.lastClaim) {
@@ -416,6 +394,7 @@ window.GameScreen = {
     }
 };
 
+// === WINNING SCREEN ===
 window.WinningScreen = {
     props: ['gameData', 'player'],
     emits: ['leave-game'],
@@ -457,6 +436,7 @@ window.WinningScreen = {
     }
 };
 
+// === LOSING SCREEN ===
 window.LosingScreen = {
     props: ['gameData', 'player'],
     emits: ['leave-game'],
@@ -468,8 +448,8 @@ window.LosingScreen = {
                 <h1 v-else>{{ gameData?.loser }} HAT VERLOREN!</h1>
                 
                 <div class="loser-info">
-                    <p v-if="isLoser">{{ loseReason }}</p>
-                    <p v-else>{{ gameData?.loser }} {{ loseReason }}</p>
+                    <p v-if="isLoser">Du hattest 4 Asse und verlierst das Spiel!</p>
+                    <p v-else>{{ gameData?.loser }} hatte 4 Asse und verliert das Spiel!</p>
                 </div>
                 
                 <div class="final-stats">
@@ -491,124 +471,9 @@ window.LosingScreen = {
         isLoser() {
             return this.player?.name === this.gameData?.loser;
         },
-        loseReason() {
-            return 'hatte 4 Asse und verliert das Spiel!';
-        },
         sortedPlayers() {
             if (!this.gameData?.players) return [];
             return [...this.gameData.players].sort((a, b) => a.cardCount - b.cardCount);
         }
     }
-};
-
-window.GameTable = {
-    props: ['gameData', 'player'],
-    template: `
-        <div class="game-table">
-            <div class="table-center">
-                <div v-if="gameData?.lastClaim">
-                    <h4>Letzte Behauptung:</h4>
-                    <p>{{ lastClaimText }}</p>
-                </div>
-                <div>
-                    <p>Karten in der Mitte: {{ gameData?.centerPileCount || 0 }}</p>
-                </div>
-            </div>
-            
-            <div 
-                v-for="(otherPlayer, index) in otherPlayers" 
-                :key="otherPlayer.id"
-                :class="getPlayerSeatClass(otherPlayer, index)"
-            >
-                <h4>{{ otherPlayer.name }}</h4>
-                <p>{{ otherPlayer.cardCount }} Karten</p>
-                <p v-if="isCurrentTurn(otherPlayer)"><strong>Am Zug</strong></p>
-            </div>
-        </div>
-    `,
-    computed: {
-        otherPlayers() {
-            if (!this.gameData?.players || !this.player) return [];
-            return this.gameData.players.filter(p => p.id !== this.player.id);
-        },
-        lastClaimText() {
-            const claim = this.gameData?.lastClaim;
-            if (!claim) return '';
-            return `${claim.player} behauptet: ${claim.count} x ${claim.value}`;
-        }
-    },
-    methods: {
-        isCurrentTurn(player) {
-            return this.gameData?.currentPlayer === player.name;
-        },
-        getPlayerSeatClass(player, index) {
-            const positions = ['seat-top', 'seat-right', 'seat-bottom-right', 'seat-bottom-left', 'seat-left'];
-            const baseClass = `player-seat ${positions[index % positions.length]}`;
-            return this.isCurrentTurn(player) ? `${baseClass} current-turn` : baseClass;
-        }
-    }
-};
-
-window.PlayerHand = {
-    props: ['cards', 'selectedCards'],
-    emits: ['toggle-card'],
-    template: `
-        <div class="my-hand">
-            <div style="margin-bottom: 15px;">
-                <h3>Deine Karten ({{ cards?.length || 0 }})</h3>
-            </div>
-            <div>
-                <div v-if="!cards || cards.length === 0" style="color: #888;">
-                    Keine Karten vorhanden
-                </div>
-                <div 
-                    v-for="card in cards" 
-                    :key="card.id"
-                    :class="getCardClass(card)"
-                    @click="$emit('toggle-card', card.id)"
-                >
-                    <div style="font-size: 14px; font-weight: bold;">{{ card.value }}</div>
-                    <div style="font-size: 16px; margin-top: 5px;">{{ getSuitSymbol(card.suit) }}</div>
-                </div>
-            </div>
-        </div>
-    `,
-    methods: {
-        getCardClass(card) {
-            const isSelected = this.selectedCards.includes(card.id);
-            return `card ${card.suit}${isSelected ? ' selected' : ''}`;
-        },
-        getSuitSymbol(suit) {
-            const symbols = {
-                hearts: '♥',
-                diamonds: '♦',
-                clubs: '♣',
-                spades: '♠'
-            };
-            return symbols[suit] || suit;
-        }
-    }
-};
-
-window.RemovedCardsPanel = {
-    props: ['removedCards'],
-    emits: ['clear'],
-    template: `
-        <div v-if="removedCards.length > 0" class="removed-cards-panel">
-            <h4>🗑️ Entfernte Karten</h4>
-            <div>
-                <div 
-                    v-for="removed in removedCards" 
-                    :key="removed.id"
-                    class="removed-card-group"
-                >
-                    <div class="player-name">{{ removed.player }}</div>
-                    <div class="cards">{{ removed.count }}x {{ removed.value }}</div>
-                </div>
-            </div>
-            <button class="btn" @click="$emit('clear')" style="margin-top: 10px; padding: 5px 10px; font-size: 12px;">
-                Liste leeren
-            </button>
-        </div>
-    `
 };
