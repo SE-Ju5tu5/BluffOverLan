@@ -397,7 +397,7 @@ window.GameScreen = {
 // === WINNING SCREEN ===
 window.WinningScreen = {
     props: ['gameData', 'player'],
-    emits: ['leave-game'],
+    emits: ['start-new-game', 'leave-game'],
     template: `
         <div class="end-screen winning-screen">
             <div class="end-content">
@@ -419,8 +419,11 @@ window.WinningScreen = {
                     </div>
                 </div>
                 
-                <button class="btn btn-success" @click="$emit('leave-game')">
+                <button class="btn btn-success" @click="$emit('start-new-game')">
                     Neues Spiel
+                </button>
+                <button class="btn btn-secondary" @click="$emit('leave-game')">
+                    Lobby verlassen
                 </button>
             </div>
         </div>
@@ -439,7 +442,7 @@ window.WinningScreen = {
 // === LOSING SCREEN ===
 window.LosingScreen = {
     props: ['gameData', 'player'],
-    emits: ['leave-game'],
+    emits: ['start-new-game', 'leave-game'],
     template: `
         <div class="end-screen losing-screen">
             <div class="end-content">
@@ -461,8 +464,11 @@ window.LosingScreen = {
                     </div>
                 </div>
                 
-                <button class="btn btn-warning" @click="$emit('leave-game')">
+                <button class="btn btn-warning" @click="$emit('start-new-game')">
                     Neues Spiel
+                </button>
+                <button class="btn btn-secondary" @click="$emit('leave-game')">
+                    Lobby verlassen
                 </button>
             </div>
         </div>

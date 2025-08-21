@@ -76,6 +76,7 @@
                 v-if="currentScreen === 'winning'"
                 :game-data="gameData"
                 :player="player"
+                @start-new-game="startNewGame"
                 @leave-game="leaveGame"
             ></winning-screen>
 
@@ -84,6 +85,7 @@
                 v-if="currentScreen === 'losing'"
                 :game-data="gameData"
                 :player="player"
+                @start-new-game="startNewGame"
                 @leave-game="leaveGame"
             ></losing-screen>
         </div>

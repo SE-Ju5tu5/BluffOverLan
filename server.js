@@ -42,12 +42,14 @@ function getLocalIpAddress() {
 }
 
 function sendGamesList(targetSocket = null) {
-    const gamesList = Array.from(games.values()).map(game => ({
-        id: game.gameId,
-        host: game.players[0] ? game.players[0].name : 'Unknown',
-        playerCount: game.players.length,
-        gameState: game.gameState
-    }));
+    const gamesList = Array.from(games.values())
+        .filter(game => game.gameState !== 'finished') // Nur aktive Spiele anzeigen
+        .map(game => ({
+            id: game.gameId,
+            host: game.players[0] ? game.players[0].name : 'Unknown',
+            playerCount: game.players.length,
+            gameState: game.gameState
+        }));
     
     if (targetSocket) {
         targetSocket.emit('gamesList', gamesList);
@@ -72,12 +74,16 @@ function broadcastSpecialEvent(gameId, eventType, actionData) {
             io.to(gameId).emit('playerLostAces', {
                 player: actionData.player
             });
+            // Aktualisiere die Spieleliste, da das Spiel beendet ist
+            sendGamesList();
             break;
             
         case 'gameWon':
             io.to(gameId).emit('gameWon', {
                 winner: actionData.winner
             });
+            // Aktualisiere die Spieleliste, da das Spiel beendet ist
+            sendGamesList();
             break;
             
         default:
@@ -329,6 +335,38 @@ io.on('connection', (socket) => {
     
     socket.on('refreshGames', () => {
         sendGamesList(socket);
+    });
+    
+    // Neues Spiel in der gleichen Lobby starten
+    socket.on('startNewGame', () => {
+        console.log('🔄 Starte neues Spiel in Lobby:', socket.id);
+        const player = players.get(socket.id);
+        if (!player || !player.gameId) return;
+        
+        const game = games.get(player.gameId);
+        if (!game) return;
+        
+        try {
+            // Reset das Spiel
+            game.reset();
+            
+            // Setze alle Spieler auf nicht bereit
+            game.players.forEach(p => {
+                const playerData = players.get(p.id);
+                if (playerData) {
+                    playerData.ready = false;
+                }
+            });
+            
+            // Sende Update an alle Spieler
+            io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
+            sendGamesList();
+            
+            console.log('✅ Neues Spiel gestartet in Lobby:', player.gameId);
+        } catch (error) {
+            console.error('❌ Fehler beim Starten eines neuen Spiels:', error.message);
+            socket.emit('error', { message: error.message });
+        }
     });
     
     socket.on('leaveGame', () => {

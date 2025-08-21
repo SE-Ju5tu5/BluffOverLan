@@ -179,6 +179,10 @@ window.SocketAPI = {
         this.socket.emit('callBluff');
     },
 
+    startNewGame() {
+        this.socket.emit('startNewGame');
+    },
+
     // Utility
     refreshGames() {
         this.socket.emit('refreshGames');

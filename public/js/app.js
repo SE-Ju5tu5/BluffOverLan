@@ -99,6 +99,12 @@ const BluffGameApp = createApp({
             window.SocketAPI.toggleReady();
         },
 
+        startNewGame() {
+            console.log('🔄 Starte neues Spiel...');
+            window.SocketAPI.startNewGame();
+            this.resetGameState();
+        },
+
         // Game Actions
         toggleCardSelection(cardId) {
             const index = this.selectedCards.indexOf(cardId);
