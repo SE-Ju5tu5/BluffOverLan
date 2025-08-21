@@ -13,11 +13,17 @@ const io = socketIO(server, {
     }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// WICHTIG: Static middleware mit korrekten MIME-Types
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        } else if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        }
+    }
+}));
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 const players = new Map();
 const games = new Map();
@@ -52,7 +58,6 @@ function sendGamesList(targetSocket = null) {
     }
 }
 
-// Neue Funktion: Sende spezielle Ereignisse an alle Spieler
 function broadcastSpecialEvent(gameId, eventType, data) {
     io.to(gameId).emit(eventType, data);
 }
@@ -181,7 +186,6 @@ io.on('connection', (socket) => {
                 game.startGame();
                 gamePlayers.forEach(p => p.ready = false);
                 
-                // WICHTIG: Prüfe auf spezielle Ereignisse nach dem Start
                 if (game.lastAction.type === 'quadsRemoved') {
                     broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
                 } else if (game.lastAction.type === 'playerLostAces') {
@@ -226,17 +230,14 @@ io.on('connection', (socket) => {
             
             console.log('✅ Karten erfolgreich gespielt!');
             
-            // WICHTIG: Prüfe auf spezielle Ereignisse
             if (game.lastAction.type === 'quadsRemoved') {
                 broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
             } else if (game.lastAction.type === 'playerLostAces') {
                 broadcastSpecialEvent(player.gameId, 'playerLostAces', game.lastAction);
             }
             
-            // Alle über die neue Situation informieren
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
             
-            // Jedem Spieler seinen aktuellen Zustand senden
             game.players.forEach(p => {
                 const playerSocket = io.sockets.sockets.get(p.id);
                 if (playerSocket) {
@@ -262,20 +263,16 @@ io.on('connection', (socket) => {
             const bluffResult = game.callBluff(socket.id);
             console.log('✅ Bluff abgearbeitet');
             
-            // Bluff-Ergebnis an alle senden
             io.to(player.gameId).emit('bluffResult', bluffResult);
             
-            // WICHTIG: Prüfe auf spezielle Ereignisse nach Bluff
             if (game.lastAction.type === 'quadsRemoved') {
                 broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
             } else if (game.lastAction.type === 'playerLostAces') {
                 broadcastSpecialEvent(player.gameId, 'playerLostAces', game.lastAction);
             }
             
-            // Game State Update
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
             
-            // Jedem Spieler seinen neuen Zustand senden
             game.players.forEach(p => {
                 const playerSocket = io.sockets.sockets.get(p.id);
                 if (playerSocket) {
@@ -343,9 +340,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('=====================================');
     console.log(`Lokal: http://localhost:${PORT}`);
     console.log(`LAN: http://${LOCAL_IP}:${PORT}`);
-    console.log('📋 Neue Regeln:');
-    console.log('- 4 gleiche Karten werden automatisch entfernt');
-    console.log('- 4 Asse = Spieler verliert sofort');
-    console.log('- Asse können nicht behauptet werden');
+    console.log('📋 Modulare Struktur mit separaten Dateien');
     console.log('=====================================');
 });

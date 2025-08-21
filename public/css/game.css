@@ -1,0 +1,359 @@
+/* Base Styles */
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #0f3460, #16537e);
+    color: white;
+    margin: 0;
+    padding: 20px;
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Status & Buttons */
+.status {
+    padding: 10px 20px;
+    border-radius: 25px;
+    display: inline-block;
+    margin: 10px;
+    font-weight: bold;
+}
+
+.status.connected { 
+    background: rgba(46, 204, 113, 0.3); 
+}
+
+.status.disconnected { 
+    background: rgba(231, 76, 60, 0.3); 
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 5px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn:hover { 
+    transform: translateY(-2px); 
+}
+
+.btn:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-success { 
+    background: linear-gradient(135deg, #2ecc71, #27ae60); 
+}
+
+.btn-warning { 
+    background: linear-gradient(135deg, #f39c12, #d68910); 
+}
+
+.btn-danger { 
+    background: linear-gradient(135deg, #e74c3c, #c0392b); 
+}
+
+.btn-bluff {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    font-size: 20px;
+    padding: 20px 40px;
+    animation: pulse 2s infinite;
+    border: 3px solid #fff;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Game Table */
+.game-table {
+    position: relative;
+    width: 800px;
+    height: 500px;
+    margin: 20px auto;
+    background: radial-gradient(ellipse, #2d5a27, #1a3317);
+    border-radius: 50%;
+    border: 8px solid #8B4513;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+}
+
+.table-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(0,0,0,0.3);
+    padding: 20px;
+    border-radius: 15px;
+    min-width: 200px;
+}
+
+.player-seat {
+    position: absolute;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    min-width: 120px;
+    backdrop-filter: blur(5px);
+}
+
+.player-seat.current-turn {
+    border: 3px solid #f39c12;
+    background: rgba(243, 156, 18, 0.2);
+    animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { box-shadow: 0 0 5px #f39c12; }
+    to { box-shadow: 0 0 20px #f39c12; }
+}
+
+/* Player Seat Positions */
+.seat-bottom { 
+    bottom: -60px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+
+.seat-top { 
+    top: -60px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+
+.seat-left { 
+    left: -80px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+}
+
+.seat-right { 
+    right: -80px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+}
+
+.seat-bottom-left { 
+    bottom: -40px; 
+    left: 100px; 
+}
+
+.seat-bottom-right { 
+    bottom: -40px; 
+    right: 100px; 
+}
+
+/* Cards & Hand */
+.my-hand {
+    margin: 30px auto;
+    max-width: 800px;
+    background: rgba(0,0,0,0.3);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+}
+
+.card {
+    width: 60px;
+    height: 85px;
+    border-radius: 8px;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+    border: 2px solid #34495e;
+    margin: 3px;
+    transition: all 0.3s ease;
+    user-select: none;
+    font-size: 12px;
+}
+
+.card:hover { 
+    transform: translateY(-10px); 
+}
+
+.card.selected {
+    border-color: #f39c12;
+    transform: translateY(-15px);
+    box-shadow: 0 0 20px rgba(243, 156, 18, 0.7);
+}
+
+.card.hearts, .card.diamonds {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+}
+
+.card.clubs, .card.spades {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    color: white;
+}
+
+/* UI Controls */
+.game-controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.7);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    max-width: 300px;
+}
+
+.selection-info {
+    background: rgba(241, 196, 15, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #f1c40f;
+}
+
+input, select {
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    margin: 5px;
+    color: #2c3e50;
+}
+
+/* Messages */
+.message {
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.message.success { 
+    background: rgba(46, 204, 113, 0.3); 
+    border: 1px solid #2ecc71; 
+}
+
+.message.error { 
+    background: rgba(231, 76, 60, 0.3); 
+    border: 1px solid #e74c3c; 
+}
+
+.message.info { 
+    background: rgba(52, 152, 219, 0.3); 
+    border: 1px solid #3498db; 
+}
+
+.message.bluff-result { 
+    background: rgba(255, 215, 0, 0.3); 
+    border: 2px solid #FFD700;
+    font-size: 16px;
+    font-weight: bold;
+    white-space: pre-line;
+}
+
+/* Game Cards & Players */
+.game-card {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.game-card:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-5px);
+}
+
+.player-card {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px;
+    text-align: center;
+}
+
+/* Removed Cards Panel */
+.removed-cards-panel {
+    position: fixed;
+    top: 20px;
+    left: 10px;
+    background: rgba(0,0,0,0.8);
+    padding: 15px;
+    border-radius: 10px;
+    z-index: 9998;
+    font-size: 14px;
+    max-width: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.removed-cards-panel h4 {
+    margin: 0 0 10px 0;
+    color: #f39c12;
+}
+
+.removed-card-group {
+    background: rgba(255,255,255,0.1);
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    border-left: 3px solid #e74c3c;
+}
+
+.removed-card-group .player-name {
+    font-weight: bold;
+    color: #3498db;
+}
+
+.removed-card-group .cards {
+    color: #ecf0f1;
+    font-size: 12px;
+}
+
+/* Vue Transitions */
+.fade-enter-active, .fade-leave-active {
+    transition: opacity 0.3s;
+}
+
+.fade-enter-from, .fade-leave-to {
+    opacity: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .game-table {
+        width: 600px;
+        height: 400px;
+    }
+    
+    .game-controls {
+        position: relative;
+        margin: 20px auto;
+        max-width: 100%;
+    }
+    
+    .my-hand {
+        margin: 20px 10px;
+    }
+    
+    .removed-cards-panel {
+        position: relative;
+        margin: 10px;
+        max-width: 100%;
+    }
+}
