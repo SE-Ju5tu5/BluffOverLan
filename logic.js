@@ -357,6 +357,21 @@ class BluffGame {
 
         // Nächster Spieler
         this.nextPlayer();
+        
+        // GEWINNLOGIK: Wenn der vorherige Spieler alle Karten gelegt hat und der nächste Spieler weiter spielt
+        // Prüfe, ob der vorherige Spieler (der gerade gespielt hat) alle Karten gelegt hatte
+        if (player.getCardCount() === 0) {
+            // Der Spieler hat alle Karten gelegt, aber der nächste Spieler spielt weiter
+            // Das bedeutet, dass der Spieler gewonnen hat, da er nicht geblufft wurde
+            this.gameState = 'finished';
+            this.winner = player;
+            this.loser = null;
+            this.lastAction = {
+                type: 'gameWon',
+                winner: player.name,
+                message: player.name + ' hat gewonnen, da alle Karten gelegt wurden und der nächste Spieler weiter gespielt hat!'
+            };
+        }
     }
 
     // FIXED callBluff method - Korrigierte nächster Spieler Logik
