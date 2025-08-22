@@ -1,58 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-    <title>Bluff Kartenspiel</title>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🃏 Bluff Kartenspiel - FIXED</title>
+    
+    <!-- Styles -->
     <link rel="stylesheet" href="css/game.css">
+    
+    <!-- Vue.js -->
     <script src="js/vue.js"></script>
+    
+    <!-- Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <div id="app">
-        <div class="container">
-            <!-- Header -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1>Bluff Kartenspiel</h1>
-                <div :class="['status', connectionStatus]">{{ statusText }}</div>
-                <div v-if="player">
-                    <div class="status connected">Spieler: {{ player.name }}</div>
-                </div>
-            </div>
-
-            <!-- NEU: 4er-Kombinationen Panel (Links) -->
-            <quads-removed-panel 
-                :removed-quads="removedQuads"
-                @clear="clearRemovedQuads"
-            ></quads-removed-panel>
-
-            <!-- Removed Cards Panel (für andere entfernte Karten) -->
-            <removed-cards-panel 
-                :removed-cards="removedCards"
-                @clear="clearRemovedCards"
-            ></removed-cards-panel>
-
-            <!-- Played Cards Panel -->
-            <played-cards-panel 
-                :game-data="gameData"
-            ></played-cards-panel>
-
-            <!-- Menu Screen -->
-            <menu-screen 
+        <div class="app-container">
+            <!-- Start Screen -->
+            <start-screen 
                 v-if="currentScreen === 'menu'"
-                :games="availableGames"
-                :player-name="player?.name || ''"
+                :player="player"
+                :available-games="availableGames"
+                :is-connected="isConnected"
+                @change-name="changeName"
                 @create-game="createGame"
                 @join-game="joinGame"
-                @change-name="changeName"
-            ></menu-screen>
+                @request-games-list="requestGamesList"
+            ></start-screen>
 
             <!-- Lobby Screen -->
             <lobby-screen 
                 v-if="currentScreen === 'lobby'"
                 :game-data="gameData"
                 :player="player"
-                :is-ready="isReady"
                 @toggle-ready="toggleReady"
                 @leave-game="leaveGame"
             ></lobby-screen>
@@ -65,10 +46,20 @@
                 :player-hand="playerHand"
                 :selected-cards="selectedCards"
                 :messages="gameMessages"
+                :available-values="availableValues"
+                :claimed-value="claimedValue"
+                :removed-cards="removedCards"
+                :removed-quads="removedQuads"
+                :show-value-popup="showValuePopup"
                 @toggle-card="toggleCardSelection"
                 @play-cards="playSelectedCards"
                 @call-bluff="callBluff"
                 @leave-game="leaveGame"
+                @update-claimed-value="updateClaimedValue"
+                @clear-removed-cards="clearRemovedCards"
+                @clear-removed-quads="clearRemovedQuads"
+                @show-value-popup="showValuePopupDialog"
+                @hide-value-popup="hideValuePopupDialog"
             ></game-screen>
 
             <!-- Winning Screen -->
@@ -95,5 +86,15 @@
     <script src="js/components.js"></script>
     <script src="js/socket-handlers.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- App Initialization -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initialisiere Bluff Kartenspiel App...');
+            const app = window.createBluffApp();
+            app.mount('#app');
+            console.log('✅ App erfolgreich gestartet!');
+        });
+    </script>
 </body>
 </html>

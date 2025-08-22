@@ -1,4 +1,4 @@
-// Socket.IO Event Handlers für das Bluff Kartenspiel - FIXED mit 4er-Liste
+// Socket.IO Event Handlers für das Bluff Kartenspiel - FIXED
 
 window.initSocketHandlers = function(app) {
     const socket = io();
@@ -7,28 +7,33 @@ window.initSocketHandlers = function(app) {
     socket.on('connect', () => {
         app.connectionStatus = 'connected';
         app.statusText = 'Verbunden';
+        console.log('✅ Socket verbunden');
     });
 
     socket.on('disconnect', () => {
         app.connectionStatus = 'disconnected';
         app.statusText = 'Getrennt';
+        console.log('❌ Socket getrennt');
     });
 
     // Player Events
     socket.on('playerConnected', (data) => {
         app.player = data.player;
         app.requestGamesList();
+        console.log('👤 Spieler verbunden:', data.player);
     });
 
     socket.on('nameChanged', (data) => {
         if (app.player) {
             app.player.name = data.name;
+            console.log('✏️ Name geändert zu:', data.name);
         }
     });
 
     // Game List Events
     socket.on('gamesList', (games) => {
         app.availableGames = games || [];
+        console.log('📋 Spiele Liste aktualisiert:', games?.length || 0);
     });
 
     // Game Creation & Joining
@@ -36,11 +41,13 @@ window.initSocketHandlers = function(app) {
         app.gameData = data.gameState;
         app.currentScreen = 'lobby';
         app.clearGameState();
+        console.log('🎯 Spiel erstellt:', data.gameState.gameId);
     });
 
     // FIXED gameUpdate - Mit Winner/Loser Screen Logic
     socket.on('gameUpdate', (data) => {
         app.gameData = data;
+        console.log('🔄 Game Update:', data);
         
         // Screen Logic based on game state
         if (data.gameState === 'waiting') {
@@ -48,7 +55,7 @@ window.initSocketHandlers = function(app) {
         } else if (data.gameState === 'playing') {
             app.currentScreen = 'game';
         } else if (data.gameState === 'finished') {
-            // Determine winner or loser - ENTWEDER winner ODER loser
+            // FIXED: Determine winner or loser - ENTWEDER winner ODER loser
             if (data.winner) {
                 app.currentScreen = 'winning';
                 app.showMessage('success', data.winner + ' hat gewonnen!');
@@ -69,6 +76,7 @@ window.initSocketHandlers = function(app) {
         if (data.allReady && data.players.length >= 2) {
             app.showMessage('success', 'Alle Spieler bereit! Spiel startet...');
         }
+        console.log('🏁 Lobby Update:', data);
     });
 
     // Game Events
@@ -78,113 +86,111 @@ window.initSocketHandlers = function(app) {
         app.clearRemovedCardsAndQuads(); // FIXED: Clear both lists
         app.clearGameState();
         app.showMessage('success', 'Spiel gestartet! Viel Spaß!');
+        console.log('🚀 Spiel gestartet');
     });
 
+    // FIXED playerGameState - Mit Hand Update
     socket.on('playerGameState', (data) => {
-        app.gameData = data;
-        app.playerHand = data.playerHand || [];
+        // Update game data with player-specific info
+        if (app.gameData) {
+            Object.assign(app.gameData, data);
+        }
+        
+        // FIXED: Update player hand
+        app.updatePlayerHand(data.playerHand);
+        
+        console.log('👤 Player Game State:', {
+            handSize: data.playerHand?.length || 0,
+            isCurrentPlayer: data.isCurrentPlayer,
+            canCallBluff: data.canCallBluff
+        });
     });
 
-    // Bluff & Special Events
-    socket.on('bluffResult', (data) => {
-        const cardList = data.actualCards.map(c => c.value + c.suit).join(', ');
-        const message = data.message + '\n\nGespielte Karten: ' + cardList;
-        app.showMessage('bluff-result', message);
+    // Bluff Result
+    socket.on('bluffResult', (result) => {
+        let message = result.message;
+        let messageType = 'bluff-result';
+        
+        if (result.type === 'bluffSucceeded') {
+            message = `🚨 BLUFF AUFGEDECKT! ${message}`;
+        } else if (result.type === 'bluffFailed') {
+            message = `✅ EHRLICH GESPIELT! ${message}`;
+        } else if (result.type === 'gameWon') {
+            message = `🏆 SPIEL GEWONNEN! ${message}`;
+            messageType = 'success';
+        }
+        
+        app.showMessage(messageType, message);
+        console.log('🚨 Bluff Result:', result);
     });
 
-    // FIXED: quadsRemoved geht in separate 4er-Liste
-    socket.on('quadsRemoved', (data) => {
-        app.showMessage('success', data.player + ' hatte 4x ' + data.value + ' - diese wurden entfernt!');
-        app.addRemovedQuads(data.player, data.value); // NEU: Separate 4er-Liste
-    });
-
-    // LOSING EVENT - When player gets 4 aces
-    socket.on('playerLostAces', (data) => {
-        app.showMessage('error', data.player + ' hat 4 Asse und verliert das Spiel!');
-        // The gameUpdate event will handle screen switching to 'losing'
-    });
-
-    // WINNING EVENT - When someone wins by playing all cards
-    socket.on('gameWon', (data) => {
-        app.showMessage('success', data.winner + ' hat alle Karten gespielt und gewonnen!');
-        // The gameUpdate event will handle screen switching to 'winning'
+    // FIXED Special Events - Mit beiden Listen
+    socket.on('specialEvent', (event) => {
+        console.log('✨ Special Event:', event);
+        
+        if (event.type === 'quadsRemoved') {
+            const data = event.data;
+            app.addRemovedQuads(data.player, data.value); // Use Quads method
+            app.showMessage('info', `${data.player} hatte 4x ${data.value} - entfernt!`);
+            
+        } else if (event.type === 'playerLostAces') {
+            const data = event.data;
+            app.showMessage('error', `${data.player} hat 4 Asse und verliert!`);
+            
+        } else if (event.type === 'gameWon') {
+            const data = event.data;
+            app.showMessage('success', `🏆 ${data.winner || data.player} hat gewonnen!`);
+        }
     });
 
     // Error Handling
-    socket.on('error', (data) => {
-        console.error('Server error:', data);
-        app.showMessage('error', data.message || 'Ein Fehler ist aufgetreten');
+    socket.on('error', (error) => {
+        app.showMessage('error', error.message);
+        console.error('❌ Socket Error:', error);
     });
 
-    return socket;
-}
+    // Custom events for app methods
+    app.changeName = (name) => {
+        socket.emit('changeName', { name });
+    };
 
-// Socket Emit Helper Functions
-window.SocketAPI = {
-    socket: null,
+    app.createGame = () => {
+        socket.emit('createGame');
+    };
 
-    init(socket) {
-        this.socket = socket;
-    },
+    app.joinGame = (gameId) => {
+        socket.emit('joinGame', { gameId });
+    };
 
-    // Game Management
-    createGame() {
-        this.socket.emit('createGame', {});
-    },
+    app.toggleReady = () => {
+        socket.emit('toggleReady');
+    };
 
-    joinGame(gameId) {
-        this.socket.emit('joinGame', { gameId });
-    },
+    app.leaveGame = () => {
+        socket.emit('leaveGame');
+    };
 
-    leaveGame() {
-        this.socket.emit('leaveGame', {});
-    },
+    app.startNewGame = () => {
+        socket.emit('startNewGame');
+    };
 
-    // Player Actions
-    changeName(name) {
-        this.socket.emit('changeName', { name });
-    },
+    app.playCards = (data) => {
+        socket.emit('playCards', data);
+    };
 
-    toggleReady() {
-        this.socket.emit('playerReady');
-    },
+    app.callBluff = () => {
+        socket.emit('callBluff');
+    };
 
-    // Game Actions
-    playCards(cardIds, claimedValue) {
-        const valueMap = {
-            '2': { name: '2', value: 2 },
-            '3': { name: '3', value: 3 },
-            '4': { name: '4', value: 4 },
-            '5': { name: '5', value: 5 },
-            '6': { name: '6', value: 6 },
-            '7': { name: '7', value: 7 },
-            '8': { name: '8', value: 8 },
-            '9': { name: '9', value: 9 },
-            '10': { name: '10', value: 10 },
-            '11': { name: 'J', value: 11 },
-            '12': { name: 'Q', value: 12 },
-            '13': { name: 'K', value: 13 }
-        };
+    app.requestGamesList = () => {
+        socket.emit('requestGamesList');
+    };
 
-        const claimedValueObj = valueMap[claimedValue];
-        
-        this.socket.emit('playCards', {
-            cardIds: cardIds,
-            claimedCount: cardIds.length,
-            claimedValue: claimedValueObj
-        });
-    },
+    // FIXED: Add methods directly to app instance
+    app.updateClaimedValue = (value) => {
+        app.claimedValue = value;
+        console.log('🎯 Claimed Value updated:', value);
+    };
 
-    callBluff() {
-        this.socket.emit('callBluff');
-    },
-
-    startNewGame() {
-        this.socket.emit('startNewGame');
-    },
-
-    // Utility
-    refreshGames() {
-        this.socket.emit('refreshGames');
-    }
+    console.log('🔌 Socket Handlers initialisiert');
 };

@@ -13,7 +13,7 @@ const io = socketIO(server, {
     }
 });
 
-// WICHTIG: Static middleware mit korrekten MIME-Types
+// Static middleware
 app.use(express.static(path.join(__dirname, 'public'), {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.js')) {
@@ -43,10 +43,10 @@ function getLocalIpAddress() {
 
 function sendGamesList(targetSocket = null) {
     const gamesList = Array.from(games.values())
-        .filter(game => game.gameState !== 'finished') // Nur aktive Spiele anzeigen
+        .filter(game => game.gameState !== 'finished')
         .map(game => ({
             id: game.gameId,
-            host: game.players[0] ? game.players[0].name : 'Unknown',
+            host: game.players[0] ? game.players[0].name : 'Unbekannt',
             playerCount: game.players.length,
             gameState: game.gameState
         }));
@@ -58,56 +58,28 @@ function sendGamesList(targetSocket = null) {
     }
 }
 
-function broadcastSpecialEvent(gameId, eventType, actionData) {
-    console.log(`📡 Broadcasting special event: ${eventType}`, actionData);
-    
-    switch (eventType) {
-        case 'quadsRemoved':
-            io.to(gameId).emit('quadsRemoved', {
-                player: actionData.player,
-                value: actionData.value,
-                count: actionData.count
-            });
-            break;
-            
-        case 'playerLostAces':
-            io.to(gameId).emit('playerLostAces', {
-                player: actionData.player
-            });
-            // Aktualisiere die Spieleliste, da das Spiel beendet ist
-            sendGamesList();
-            break;
-            
-        case 'gameWon':
-            io.to(gameId).emit('gameWon', {
-                winner: actionData.winner
-            });
-            // Aktualisiere die Spieleliste, da das Spiel beendet ist
-            sendGamesList();
-            break;
-            
-        default:
-            console.warn('⚠️ Unknown special event type:', eventType);
-    }
+function broadcastSpecialEvent(gameId, eventType, eventData) {
+    setTimeout(() => {
+        io.to(gameId).emit('specialEvent', { type: eventType, data: eventData });
+    }, 1000);
 }
 
 io.on('connection', (socket) => {
-    console.log('✅ Spieler verbunden:', socket.id);
+    console.log('👤 Spieler verbunden:', socket.id);
     
-    // Player erstellen und verbinden
-    if (!players.has(socket.id)) {
-        const playerName = `Spieler${Math.floor(Math.random() * 1000)}`;
-        players.set(socket.id, {
-            id: socket.id,
-            name: playerName,
-            gameId: null,
-            ready: false
-        });
-        
-        socket.emit('playerConnected', {
-            player: players.get(socket.id)
-        });
-    }
+    // Spieler registrieren
+    const playerName = `Spieler${Math.floor(Math.random() * 1000)}`;
+    const newPlayer = {
+        id: socket.id,
+        name: playerName,
+        gameId: null
+    };
+    
+    players.set(socket.id, newPlayer);
+    
+    socket.emit('playerConnected', {
+        player: newPlayer
+    });
     
     sendGamesList(socket);
     
@@ -115,60 +87,43 @@ io.on('connection', (socket) => {
     socket.on('changeName', (data) => {
         const player = players.get(socket.id);
         if (player && data.name && data.name.trim()) {
-            const oldName = player.name;
             player.name = data.name.trim();
-            console.log(`📝 Name geändert: ${oldName} → ${player.name}`);
             socket.emit('nameChanged', { name: player.name });
+            console.log('✏️ Name geändert:', player.name);
         }
     });
     
     // Spiel erstellen
-    socket.on('createGame', (data) => {
-        console.log('🎮 Erstelle neues Spiel für:', socket.id);
+    socket.on('createGame', () => {
         const player = players.get(socket.id);
         if (!player) return;
         
-        // Wenn Spieler bereits in einem Spiel ist, verlassen
-        if (player.gameId) {
-            const oldGame = games.get(player.gameId);
-            if (oldGame) {
-                oldGame.removePlayer(socket.id);
-                socket.leave(player.gameId);
-            }
-        }
-        
         const gameId = 'game_' + Date.now();
         const game = new BluffGame(gameId);
-        games.set(gameId, game);
-        
-        // Spieler zum Spiel hinzufügen
         game.addPlayer(socket.id, player.name);
+        
+        games.set(gameId, game);
         player.gameId = gameId;
-        player.ready = false;
         
         socket.join(gameId);
+        
+        console.log('🎯 Spiel erstellt:', gameId, 'von', player.name);
         
         socket.emit('gameCreated', {
             gameState: game.getPublicGameState()
         });
         
         sendGamesList();
-        console.log('✅ Spiel erstellt:', gameId);
     });
     
     // Spiel beitreten
     socket.on('joinGame', (data) => {
-        console.log('👥 Trete Spiel bei:', data.gameId, 'Spieler:', socket.id);
         const player = players.get(socket.id);
+        if (!player || !data.gameId) return;
+        
         const game = games.get(data.gameId);
-        
-        if (!player || !game) {
+        if (!game) {
             socket.emit('error', { message: 'Spiel nicht gefunden' });
-            return;
-        }
-        
-        if (game.players.length >= 6) {
-            socket.emit('error', { message: 'Spiel ist voll' });
             return;
         }
         
@@ -177,95 +132,91 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Wenn Spieler bereits in einem Spiel ist, verlassen
-        if (player.gameId) {
-            const oldGame = games.get(player.gameId);
-            if (oldGame) {
-                oldGame.removePlayer(socket.id);
-                socket.leave(player.gameId);
-            }
+        if (game.players.length >= 6) {
+            socket.emit('error', { message: 'Spiel ist voll' });
+            return;
         }
         
-        // Zum neuen Spiel hinzufügen
         game.addPlayer(socket.id, player.name);
         player.gameId = data.gameId;
-        player.ready = false;
         
         socket.join(data.gameId);
         
+        console.log('👥 Spieler beigetreten:', player.name, '→', data.gameId);
+        
         io.to(data.gameId).emit('gameUpdate', game.getPublicGameState());
         sendGamesList();
-        console.log('✅ Spieler beigetreten');
     });
     
-    // Spieler bereit toggle
-    socket.on('playerReady', () => {
-        console.log('🔄 Spieler ready toggle:', socket.id);
+    // Bereit togglen
+    socket.on('toggleReady', () => {
         const player = players.get(socket.id);
         if (!player || !player.gameId) return;
         
         const game = games.get(player.gameId);
-        if (!game) return;
+        if (!game || game.gameState !== 'waiting') return;
         
-        player.ready = !player.ready;
-        
-        // Prüfe ob alle bereit sind
-        const allReady = game.players.every(p => {
-            const playerData = players.get(p.id);
-            return playerData && playerData.ready;
-        });
-        
-        const playersWithReady = game.players.map(p => {
-            const playerData = players.get(p.id);
-            return {
-                ...p,
-                ready: playerData ? playerData.ready : false
-            };
-        });
-        
-        io.to(player.gameId).emit('lobbyUpdate', {
-            players: playersWithReady,
-            allReady: allReady
-        });
-        
-        // Starte Spiel wenn alle bereit und mindestens 2 Spieler
-        if (allReady && game.players.length >= 2) {
-            setTimeout(() => {
-                try {
-                    game.startGame();
-                    io.to(player.gameId).emit('gameStarted', game.getPublicGameState());
-                    
-                    // Sende jedem Spieler seine Hand
-                    game.players.forEach(p => {
-                        const playerSocket = io.sockets.sockets.get(p.id);
-                        if (playerSocket) {
-                            playerSocket.emit('playerGameState', game.getPlayerGameState(p.id));
-                        }
-                    });
-                    
-                    console.log('🚀 Spiel gestartet:', player.gameId);
-                } catch (error) {
-                    console.error('❌ Fehler beim Spiel starten:', error.message);
-                    io.to(player.gameId).emit('error', { message: error.message });
-                }
-            }, 2000);
+        const gamePlayer = game.getPlayer(socket.id);
+        if (gamePlayer) {
+            gamePlayer.ready = !gamePlayer.ready;
+            console.log('⚡ Ready Status:', player.name, '→', gamePlayer.ready);
+            
+            const allReady = game.players.every(p => p.ready);
+            
+            io.to(player.gameId).emit('lobbyUpdate', {
+                players: game.players.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    ready: p.ready || false
+                })),
+                allReady: allReady
+            });
+            
+            if (allReady && game.players.length >= 2) {
+                setTimeout(() => {
+                    try {
+                        game.startGame();
+                        console.log('🚀 Spiel gestartet:', game.gameId);
+                        
+                        io.to(player.gameId).emit('gameStarted', game.getPublicGameState());
+                        
+                        game.players.forEach(p => {
+                            const playerSocket = io.sockets.sockets.get(p.id);
+                            if (playerSocket) {
+                                playerSocket.emit('playerGameState', game.getPlayerGameState(p.id));
+                            }
+                        });
+                        
+                        sendGamesList();
+                    } catch (error) {
+                        console.error('❌ Fehler beim Spielstart:', error);
+                        io.to(player.gameId).emit('error', { message: error.message });
+                    }
+                }, 1500);
+            }
         }
     });
     
     // Karten spielen
     socket.on('playCards', (data) => {
-        console.log('🎯 Karten gespielt von:', socket.id, data);
+        console.log('🃏 Karten gespielt von:', socket.id, data);
         const player = players.get(socket.id);
-        if (!player || !player.gameId) return;
+        if (!player || !player.gameId) {
+            console.log('❌ Spieler oder GameID nicht gefunden');
+            return;
+        }
         
         const game = games.get(player.gameId);
-        if (!game) return;
+        if (!game) {
+            console.log('❌ Spiel nicht gefunden');
+            return;
+        }
         
         try {
-            game.playCards(socket.id, data.cardIds, data.claimedCount, data.claimedValue);
-            console.log('✅ Karten erfolgreich gespielt');
+            game.playCards(socket.id, data.cardIds, data.count, data.value);
+            console.log('✅ Karten gespielt');
             
-            // Handle special events first
+            // Check für Special Events
             if (game.lastAction.type === 'quadsRemoved') {
                 broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
             } else if (game.lastAction.type === 'playerLostAces') {
@@ -274,7 +225,7 @@ io.on('connection', (socket) => {
                 broadcastSpecialEvent(player.gameId, 'gameWon', game.lastAction);
             }
             
-            // Always send game update
+            // Send game update
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
             
             // Send individual player states
@@ -304,10 +255,10 @@ io.on('connection', (socket) => {
             const bluffResult = game.callBluff(socket.id);
             console.log('✅ Bluff abgearbeitet');
             
-            // Send bluff result first
+            // Send bluff result
             io.to(player.gameId).emit('bluffResult', bluffResult);
             
-            // Handle special events that might happen after bluff
+            // Handle special events
             if (game.lastAction.type === 'quadsRemoved') {
                 broadcastSpecialEvent(player.gameId, 'quadsRemoved', game.lastAction);
             } else if (game.lastAction.type === 'playerLostAces') {
@@ -316,7 +267,7 @@ io.on('connection', (socket) => {
                 broadcastSpecialEvent(player.gameId, 'gameWon', game.lastAction);
             }
             
-            // Always send game update
+            // Send game update
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
             
             // Send individual player states
@@ -333,13 +284,34 @@ io.on('connection', (socket) => {
         }
     });
     
-    socket.on('refreshGames', () => {
-        sendGamesList(socket);
+    // Spiel verlassen
+    socket.on('leaveGame', () => {
+        const player = players.get(socket.id);
+        if (!player || !player.gameId) return;
+        
+        const game = games.get(player.gameId);
+        const gameId = player.gameId;
+        
+        socket.leave(gameId);
+        player.gameId = null;
+        
+        if (game) {
+            game.players = game.players.filter(p => p.id !== socket.id);
+            
+            if (game.players.length === 0) {
+                games.delete(gameId);
+                console.log('🗑️ Leeres Spiel gelöscht:', gameId);
+            } else {
+                io.to(gameId).emit('gameUpdate', game.getPublicGameState());
+            }
+        }
+        
+        console.log('👋 Spieler verlässt Spiel:', player.name);
+        sendGamesList();
     });
     
-    // Neues Spiel in der gleichen Lobby starten
+    // Neues Spiel starten
     socket.on('startNewGame', () => {
-        console.log('🔄 Starte neues Spiel in Lobby:', socket.id);
         const player = players.get(socket.id);
         if (!player || !player.gameId) return;
         
@@ -347,85 +319,47 @@ io.on('connection', (socket) => {
         if (!game) return;
         
         try {
-            // Reset das Spiel
             game.reset();
+            console.log('🔄 Spiel neu gestartet:', game.gameId);
             
-            // Setze alle Spieler auf nicht bereit
-            game.players.forEach(p => {
-                const playerData = players.get(p.id);
-                if (playerData) {
-                    playerData.ready = false;
-                }
-            });
-            
-            // Sende Update an alle Spieler
             io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
-            sendGamesList();
             
-            console.log('✅ Neues Spiel gestartet in Lobby:', player.gameId);
         } catch (error) {
-            console.error('❌ Fehler beim Starten eines neuen Spiels:', error.message);
+            console.error('❌ Fehler beim Spiel-Neustart:', error);
             socket.emit('error', { message: error.message });
         }
     });
     
-    socket.on('leaveGame', () => {
-        const player = players.get(socket.id);
-        if (player && player.gameId) {
-            const game = games.get(player.gameId);
-            if (game) {
-                game.removePlayer(socket.id);
-                socket.leave(player.gameId);
-                player.gameId = null;
-                player.ready = false;
-                
-                // Lösche leere Lobbys, auch wenn das Spiel läuft
-                if (game.players.length === 0) {
-                    games.delete(player.gameId);
-                    console.log('🗑️ Leeres Spiel gelöscht');
-                } else {
-                    io.to(game.gameId).emit('gameUpdate', game.getPublicGameState());
-                }
-                
-                sendGamesList();
-            }
-        }
-    });
-    
+    // Disconnect
     socket.on('disconnect', () => {
-        console.log('❌ Spieler getrennt:', socket.id);
+        console.log('👤 Spieler getrennt:', socket.id);
         
         const player = players.get(socket.id);
         if (player && player.gameId) {
             const game = games.get(player.gameId);
             if (game) {
-                game.removePlayer(socket.id);
+                game.players = game.players.filter(p => p.id !== socket.id);
                 
-                // Lösche leere Lobbys, auch wenn das Spiel läuft
                 if (game.players.length === 0) {
                     games.delete(player.gameId);
-                    console.log('🗑️ Leeres Spiel gelöscht (Disconnect)');
+                    console.log('🗑️ Leeres Spiel gelöscht:', player.gameId);
                 } else {
                     io.to(player.gameId).emit('gameUpdate', game.getPublicGameState());
                 }
-                
-                sendGamesList();
             }
         }
         
         players.delete(socket.id);
+        sendGamesList();
     });
 });
 
-const PORT = process.env.PORT || 3001;
-const LOCAL_IP = getLocalIpAddress();
+const PORT = process.env.PORT || 3000;
+const localIP = getLocalIpAddress();
 
 server.listen(PORT, '0.0.0.0', () => {
-    console.log('=====================================');
-    console.log('🃏 BLUFF KARTENSPIEL SERVER LÄUFT!');
-    console.log('=====================================');
-    console.log(`Lokal: http://localhost:${PORT}`);
-    console.log(`LAN: http://${LOCAL_IP}:${PORT}`);
-    console.log('📋 Modulare Struktur mit separaten Dateien');
-    console.log('=====================================');
+    console.log(`🚀 Bluff Kartenspiel Server läuft:`);
+    console.log(`   📱 Lokal: http://localhost:${PORT}`);
+    console.log(`   🌐 Netzwerk: http://${localIP}:${PORT}`);
+    console.log(`   🎯 Bereit für Verbindungen!`);
 });
