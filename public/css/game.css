@@ -749,3 +749,101 @@ h2, h3 {
         gap: 8px;
     }
 }
+
+.table-circle {
+  width: 400px;
+  height: 400px;
+  border: 2px solid #444;
+  border-radius: 50%;
+  margin: 60px auto;
+  position: relative;
+}
+
+.player-slot {
+  background: #eee;
+  padding: 5px 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.player-slot .me {
+  font-weight: bold;
+  color: green;
+}
+
+.turn-indicator {
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+.hand-panel {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.9);
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.hand-panel .cards {
+  display: flex;
+  gap: 8px;
+}
+
+.card {
+  width: 50px;
+  height: 70px;
+  border: 1px solid #000;
+  border-radius: 5px;
+  background: white;
+  text-align: center;
+  cursor: pointer;
+}
+
+.card.selected {
+  border: 2px solid red;
+  transform: translateY(-10px);
+}
+.card {
+  width: 60px;
+  height: 90px;
+  border: 1px solid #000;
+  border-radius: 6px;
+  background: white;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.card-rank {
+  font-size: 20px;
+}
+
+.card-suit {
+  font-size: 22px;
+}
+
+/* Farben nach Symbol */
+.suit-herz .card-rank,
+.suit-herz .card-suit,
+.suit-karo .card-rank,
+.suit-karo .card-suit {
+  color: red;
+}
+
+.suit-pik .card-rank,
+.suit-pik .card-suit,
+.suit-kreuz .card-rank,
+.suit-kreuz .card-suit {
+  color: black;
+}
+
+.card.selected {
+  border: 2px solid red;
+  transform: translateY(-10px);
+}
+

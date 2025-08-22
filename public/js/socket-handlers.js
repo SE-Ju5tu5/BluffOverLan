@@ -1,196 +1,210 @@
-// Socket.IO Event Handlers für das Bluff Kartenspiel - FIXED
+// public/js/socket-handlers.js
+// Initialisiert alle Socket.IO Listener und bindet sie an die Vue-App
 
-window.initSocketHandlers = function(app) {
+(function () {
+  window.initSocketHandlers = function (app) {
+    if (!window.io) {
+      console.error('❌ Socket.IO (io) nicht gefunden.');
+      return;
+    }
+
     const socket = io();
-    
-    // Connection Events
-    socket.on('connect', () => {
-        app.connectionStatus = 'connected';
-        app.statusText = 'Verbunden';
-        console.log('✅ Socket verbunden');
+
+    // Verbindung
+    socket.on('connect', function () {
+      console.log('✅ Socket verbunden');
+      app.connectionStatus = 'connected';
+      console.log('🔌 Client connected, socket.id =', socket.id);
+
+      if (!app.player) app.player = {};
+      app.player.id = socket.id;
+
+      socket.emit('requestGamesList');
     });
 
-    socket.on('disconnect', () => {
-        app.connectionStatus = 'disconnected';
-        app.statusText = 'Getrennt';
-        console.log('❌ Socket getrennt');
+    socket.on('disconnect', function () {
+      console.log('🔌 Socket getrennt');
+      app.connectionStatus = 'disconnected';
     });
 
-    // Player Events
-    socket.on('playerConnected', (data) => {
-        app.player = data.player;
-        app.requestGamesList();
-        console.log('👤 Spieler verbunden:', data.player);
+    socket.on('connect_error', function (err) {
+      console.warn('⚠️ connect_error:', err && err.message ? err.message : err);
+      app.connectionStatus = 'disconnected';
     });
 
-    socket.on('nameChanged', (data) => {
-        if (app.player) {
-            app.player.name = data.name;
-            console.log('✏️ Name geändert zu:', data.name);
-        }
-    });
-
-    // Game List Events
-    socket.on('gamesList', (games) => {
-        app.availableGames = games || [];
-        console.log('📋 Spiele Liste aktualisiert:', games?.length || 0);
-    });
-
-    // Game Creation & Joining
-    socket.on('gameCreated', (data) => {
-        app.gameData = data.gameState;
-        app.currentScreen = 'lobby';
-        app.clearGameState();
-        console.log('🎯 Spiel erstellt:', data.gameState.gameId);
-    });
-
-    // FIXED gameUpdate - Mit Winner/Loser Screen Logic
-    socket.on('gameUpdate', (data) => {
-        app.gameData = data;
-        console.log('🔄 Game Update:', data);
-        
-        // Screen Logic based on game state
-        if (data.gameState === 'waiting') {
-            app.currentScreen = 'lobby';
-        } else if (data.gameState === 'playing') {
-            app.currentScreen = 'game';
-        } else if (data.gameState === 'finished') {
-            // FIXED: Determine winner or loser - ENTWEDER winner ODER loser
-            if (data.winner) {
-                app.currentScreen = 'winning';
-                app.showMessage('success', data.winner + ' hat gewonnen!');
-            } else if (data.loser) {
-                app.currentScreen = 'losing';
-                app.showMessage('error', data.loser + ' hat verloren!');
-            }
-        }
-    });
-
-    // Lobby Events
-    socket.on('lobbyUpdate', (data) => {
-        if (app.gameData) {
-            // Update player ready status
-            app.gameData.players = data.players;
-        }
-        
-        if (data.allReady && data.players.length >= 2) {
-            app.showMessage('success', 'Alle Spieler bereit! Spiel startet...');
-        }
-        console.log('🏁 Lobby Update:', data);
-    });
-
-    // Game Events
-    socket.on('gameStarted', (data) => {
-        app.gameData = data;
-        app.currentScreen = 'game';
-        app.clearRemovedCardsAndQuads(); // FIXED: Clear both lists
-        app.clearGameState();
-        app.showMessage('success', 'Spiel gestartet! Viel Spaß!');
-        console.log('🚀 Spiel gestartet');
-    });
-
-    // FIXED playerGameState - Mit Hand Update
-    socket.on('playerGameState', (data) => {
-        // Update game data with player-specific info
-        if (app.gameData) {
-            Object.assign(app.gameData, data);
-        }
-        
-        // FIXED: Update player hand
-        app.updatePlayerHand(data.playerHand);
-        
-        console.log('👤 Player Game State:', {
-            handSize: data.playerHand?.length || 0,
-            isCurrentPlayer: data.isCurrentPlayer,
-            canCallBluff: data.canCallBluff
+    // Spieleliste
+    socket.on('gamesList', function (list) {
+      try {
+        const safe = Array.isArray(list) ? list : [];
+        app.availableGames = safe.map(function (g) {
+          return {
+            id: g.id || g.gameId || '',
+            host: g.host || 'Host',
+            playerCount: typeof g.playerCount === 'number' ? g.playerCount : 0,
+            gameState: g.gameState || g.state || 'waiting'
+          };
         });
+        console.log('📋 Spiele Liste aktualisiert:', app.availableGames.length);
+      } catch (e) {
+        console.warn('⚠️ gamesList parse error:', e);
+      }
     });
 
-    // Bluff Result
-    socket.on('bluffResult', (result) => {
-        let message = result.message;
-        let messageType = 'bluff-result';
-        
-        if (result.type === 'bluffSucceeded') {
-            message = `🚨 BLUFF AUFGEDECKT! ${message}`;
-        } else if (result.type === 'bluffFailed') {
-            message = `✅ EHRLICH GESPIELT! ${message}`;
-        } else if (result.type === 'gameWon') {
-            message = `🏆 SPIEL GEWONNEN! ${message}`;
-            messageType = 'success';
+    // Spiel erstellt
+    socket.on('gameCreated', function (payload) {
+      var gameId = typeof payload === 'string' ? payload : (payload && payload.gameId);
+      if (!gameId) {
+        console.warn('⚠️ gameCreated ohne gameId:', payload);
+        return;
+      }
+      console.log('🎯 Spiel erstellt:', gameId);
+      app.gameData = {
+        gameId: gameId, gameState: 'waiting', players: [],
+        currentPlayerIndex: 0, currentPlayer: null, lastClaim: null
+      };
+      app.currentScreen = 'lobby';
+      if (typeof app.showMessage === 'function') {
+        app.showMessage('success', 'Spiel erstellt: ' + gameId);
+      }
+    });
+
+    // Lobby Update
+    socket.on('lobbyUpdate', function (data) {
+      console.log('🏁 Lobby Update:', data);
+      try {
+        if (app && app.gameData) {
+          app.gameData.players = Array.isArray(data.players) ? data.players.map(function (p) {
+            return { id: p.id, name: p.name, ready: !!p.ready };
+          }) : [];
+
+          var me = Array.isArray(app.gameData.players)
+            ? app.gameData.players.find(function (pl) { return pl.id === socket.id; })
+            : null;
+          if (me) {
+            if (!app.player) app.player = {};
+            app.player.id = me.id;
+            app.player.name = me.name;
+          }
+
+          if (app.currentScreen !== 'lobby') app.currentScreen = 'lobby';
         }
-        
-        app.showMessage(messageType, message);
-        console.log('🚨 Bluff Result:', result);
+      } catch (e) {
+        console.warn('⚠️ lobbyUpdate parse error:', e);
+      }
     });
 
-    // FIXED Special Events - Mit beiden Listen
-    socket.on('specialEvent', (event) => {
-        console.log('✨ Special Event:', event);
-        
-        if (event.type === 'quadsRemoved') {
-            const data = event.data;
-            app.addRemovedQuads(data.player, data.value); // Use Quads method
-            app.showMessage('info', `${data.player} hatte 4x ${data.value} - entfernt!`);
-            
-        } else if (event.type === 'playerLostAces') {
-            const data = event.data;
-            app.showMessage('error', `${data.player} hat 4 Asse und verliert!`);
-            
-        } else if (event.type === 'gameWon') {
-            const data = event.data;
-            app.showMessage('success', `🏆 ${data.winner || data.player} hat gewonnen!`);
+    // Game Update
+    socket.on('gameUpdate', function (data) {
+      console.log('🔄 Game Update:', data);
+      try {
+        if (!app.gameData) app.gameData = {};
+        app.gameData.gameId = data.gameId || app.gameData.gameId;
+        app.gameData.gameState = data.gameState || app.gameData.gameState || 'waiting';
+        app.gameData.players = Array.isArray(data.players) ? data.players : [];
+        app.gameData.currentPlayerIndex = (typeof data.currentPlayerIndex === 'number')
+          ? data.currentPlayerIndex : (app.gameData.currentPlayerIndex || 0);
+        app.gameData.currentPlayer = data.currentPlayer || null;
+        app.gameData.lastClaim = data.lastClaim || null;
+
+        var me2 = Array.isArray(app.gameData.players)
+          ? app.gameData.players.find(function (pl) { return pl.id === socket.id; })
+          : null;
+        if (me2) {
+          if (!app.player) app.player = {};
+          app.player.id = me2.id;
+          app.player.name = me2.name;
         }
+
+        if (app.gameData.gameState === 'playing') {
+          app.currentScreen = 'game';
+        } else if (app.gameData.gameState === 'finished') {
+          app.currentScreen = 'menu';
+        }
+      } catch (e) {
+        console.warn('⚠️ gameUpdate parse error:', e);
+      }
     });
 
-    // Error Handling
-    socket.on('error', (error) => {
-        app.showMessage('error', error.message);
-        console.error('❌ Socket Error:', error);
+    // Spieler-Hand
+    socket.on('playerHand', function (hand) {
+      try {
+        var safeHand = Array.isArray(hand) ? hand : [];
+        if (typeof app.updatePlayerHand === 'function') {
+          app.updatePlayerHand(safeHand);
+        } else {
+          app.playerHand = safeHand;
+        }
+      } catch (e) {
+        console.warn('⚠️ playerHand parse error:', e);
+      }
     });
 
-    // Custom events for app methods
-    app.changeName = (name) => {
-        socket.emit('changeName', { name });
-    };
+    // Player Game State (isCurrentPlayer, canCallBluff)
+    socket.on('playerGameState', function (data) {
+      console.log('👤 Player Game State:', data);
+      app.gameData = app.gameData || {};
+      app.gameData.isCurrentPlayer = !!(data && data.isCurrentPlayer);
+      app.gameData.canCallBluff = !!(data && data.canCallBluff);
+    });
 
-    app.createGame = () => {
-        socket.emit('createGame');
-    };
+    // Server Messages
+    socket.on('serverMessage', function (msg) {
+      try {
+        if (msg && msg.text) {
+          console.log('💬 [' + (msg.type || 'info').toUpperCase() + ']', msg.text);
+          if (typeof app.showMessage === 'function') {
+            app.showMessage(msg.type || 'info', msg.text);
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ serverMessage parse error:', e);
+      }
+    });
 
-    app.joinGame = (gameId) => {
-        socket.emit('joinGame', { gameId });
-    };
+    // 🔔 Ergebnis vom Bluff
+    socket.on('bluffResolved', function (evt) {
+      try {
+        console.log('🎲 Bluff Ergebnis:', evt);
+        const text = evt && evt.truth
+          ? `✅ Wahrheit! ${evt.loserName} nimmt die Karten auf.`
+          : `❌ Bluff! ${evt.loserName} nimmt die Karten auf.`;
+        if (typeof app.showMessage === 'function') {
+          app.showMessage(evt && evt.truth ? 'success' : 'warning', text);
+        }
+      } catch (e) {
+        console.warn('⚠️ bluffResolved parse error:', e);
+      }
+    });
 
-    app.toggleReady = () => {
-        socket.emit('toggleReady');
-    };
+    // Optional: Broadcast, wenn Karten gelegt wurden
+    socket.on('cardsPlayed', function (evt) {
+      try {
+        console.log('🃏 Karten gespielt (broadcast):', evt);
+        if (typeof app.showMessage === 'function' && evt && evt.playerName) {
+          var count = Array.isArray(evt.cards) ? evt.cards.length : 0;
+          var val = evt.claim && evt.claim.value ? evt.claim.value : '?';
+          app.showMessage('info', `${evt.playerName} spielt ${count} Karte(n), behauptet: ${val}`);
+        }
+      } catch (e) {
+        console.warn('⚠️ cardsPlayed parse error:', e);
+      }
+    });
 
-    app.leaveGame = () => {
-        socket.emit('leaveGame');
-    };
-
-    app.startNewGame = () => {
-        socket.emit('startNewGame');
-    };
-
-    app.playCards = (data) => {
-        socket.emit('playCards', data);
-    };
-
-    app.callBluff = () => {
-        socket.emit('callBluff');
-    };
-
-    app.requestGamesList = () => {
-        socket.emit('requestGamesList');
-    };
-
-    // FIXED: Add methods directly to app instance
-    app.updateClaimedValue = (value) => {
-        app.claimedValue = value;
-        console.log('🎯 Claimed Value updated:', value);
+    // SocketAPI
+    window.SocketAPI = {
+      changeName: function (name) { socket.emit('changeName', { name: String(name || '') }); },
+      requestGamesList: function () { socket.emit('requestGamesList'); },
+      createGame: function () { socket.emit('createGame'); },
+      joinGame: function (gameId) { socket.emit('joinGame', { gameId: String(gameId || '') }); },
+      leaveGame: function () { socket.emit('leaveGame'); },
+      startNewGame: function () { socket.emit('startNewGame'); },
+      toggleReady: function () { socket.emit('toggleReady'); },
+      playCards: function (data) { socket.emit('playCards', data); },
+      callBluff: function () { socket.emit('callBluff'); },
+      getId: function () { return socket.id || null; }
     };
 
     console.log('🔌 Socket Handlers initialisiert');
-};
+  };
+})();
+
